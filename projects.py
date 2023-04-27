@@ -123,9 +123,8 @@ class Projects_Ui(object):
 
         # self.main_grid = QtWidgets.QGridLayout(self.scrollAreaWidgetContents)
         self.main_grid = QtWidgets.QVBoxLayout(self.scrollAreaWidgetContents)
-        spacerItem3 = QtWidgets.QSpacerItem(20, 40, QtWidgets.QSizePolicy.Policy.Minimum,
-                                            QtWidgets.QSizePolicy.Policy.Expanding)
-        self.main_grid.addItem(spacerItem3)
+        self.main_grid.setContentsMargins(10, 0, 10, 10)
+
         self.scrollArea.setWidget(self.scrollAreaWidgetContents)
         self.verticalLayout_3.addWidget(self.scrollArea)
         self.horizontalLayout.addWidget(self.right_side)
@@ -133,6 +132,7 @@ class Projects_Ui(object):
 
         self.retranslateUi(MainWindow)
         QtCore.QMetaObject.connectSlotsByName(MainWindow)
+        self.scrollArea.setWidgetResizable(True)
 
     def load_list_projects(self):
         self.list_projects = os.listdir('saves/')
@@ -149,6 +149,8 @@ class Projects_Ui(object):
 
     # Загрузка параметров проекта
     def load_data_project(self):
+        self.delete_chield(self.main_grid)
+
         password = ""
         dec_data_params = []
         dec_data_params_value = []
@@ -170,10 +172,15 @@ class Projects_Ui(object):
         self.list_iteration_names = self.list_iteration_names or []
 
         self.list_iter_obj = []
+
         for name in self.list_iteration_names:
             _iter = Iteration2(self.scrollAreaWidgetContents, self.selected_project, name)
             self.main_grid.addWidget(_iter)
             self.list_iter_obj.append(_iter)
+
+        spacerItem3 = QtWidgets.QSpacerItem(20, 40, QtWidgets.QSizePolicy.Policy.Minimum,
+                                            QtWidgets.QSizePolicy.Policy.Expanding)
+        self.main_grid.addItem(spacerItem3)
 
     def del_project(self):
         name = self.selected_project
@@ -194,6 +201,12 @@ class Projects_Ui(object):
     def retranslateUi(self, MainWindow):
         _translate = QtCore.QCoreApplication.translate
         MainWindow.setWindowTitle(_translate("MainWindow", "ЛКМщик - Мои проекты"))
+
+    def delete_chield(self, loyout):
+        while loyout.count():
+            child = loyout.takeAt(0)
+            if child.widget():
+                child.widget().deleteLater()
 
 
 class CustomListItem(QtWidgets.QListView):
@@ -392,22 +405,29 @@ class Recepture:
 
 
 
-
 class Iteration2(QtWidgets.QWidget):
-    START_ROW = 0
 
     def __init__(self, parent, project, name):
         super(Iteration2, self).__init__(parent=parent)
-        self.setStyleSheet("""border:1px solid black;""")
-        Iteration.START_ROW += 4
         self.project = project
         self.name = name
 
+        self.vertical_loyout = QtWidgets.QVBoxLayout(self)
         self.iteration_toolbar = QtWidgets.QWidget(self)
+        self.iteration_toolbar.setContentsMargins(0,15,0,5 )
+        self.iteration_toolbar.setObjectName("iterNameArea")
+        self.iteration_toolbar.setStyleSheet("""
+        QWidget#iterNameArea{
+        border-bottom: 2px solid #ddd;
+        }
+        """)
         self.horizontalLayout_3 = QtWidgets.QHBoxLayout(self.iteration_toolbar)
         self.horizontalLayout_3.setContentsMargins(0, 0, 0, 0)
         self.iter_name = QtWidgets.QLabel(parent=self.iteration_toolbar)
         self.iter_name.setText(name)
+        font = QtGui.QFont()
+        font.setPointSize(16)
+        self.iter_name.setFont(font)
         self.horizontalLayout_3.addWidget(self.iter_name)
 
         self.del_iter_btn = ProjectToolButton(self.iteration_toolbar, "del")
@@ -416,23 +436,34 @@ class Iteration2(QtWidgets.QWidget):
         spacerItem1 = QtWidgets.QSpacerItem(40, 20, QtWidgets.QSizePolicy.Policy.Expanding,
                                             QtWidgets.QSizePolicy.Policy.Minimum)
         self.horizontalLayout_3.addItem(spacerItem1)
+        self.vertical_loyout.addWidget(self.iteration_toolbar)
 
         self.iter = QtWidgets.QWidget(self)
-        self.loyout = QtWidgets.QHBoxLayout(self)
-        self.loyout.addWidget(self.iteration_toolbar)
+        self.loyout = QtWidgets.QHBoxLayout(self.iter)
+        self.loyout.setSpacing(10)
+        self.vertical_loyout.addWidget(self.iter)
 
         self.list_recepture_names = self.get_list_recepture_names()
         self.list_recepture_obj = []
 
+        list_size = []
         for r_name in self.list_recepture_names:
             recepture = Recepture2(self.iter, r_name, self.iter_data[r_name])
             self.list_recepture_obj.append(recepture)
             self.loyout.addWidget(recepture)
-        Recepture.START_COL = 0
+            list_size.append(recepture.get_size())
+
+        max_size = max(list_size)
+
+        for recepture in self.list_recepture_obj:
+            while recepture.get_size() < max_size:
+                recepture.add_component("", "")
 
         spacerItem2 = QtWidgets.QSpacerItem(40, 20, QtWidgets.QSizePolicy.Policy.Expanding,
                                             QtWidgets.QSizePolicy.Policy.Minimum)
         self.loyout.addItem(spacerItem2)
+
+
 
     def get_list_recepture_names(self):
         with SqliteDict('saves/' + self.project + '/' + self.name) as mydict:
@@ -442,56 +473,135 @@ class Iteration2(QtWidgets.QWidget):
         return sorted_list_key
 
 
-class Recepture2(QtWidgets.QWidget):
-    START_COL = 0
+class Recepture2(QtWidgets.QFrame):
 
     def __init__(self, parent, name, data):
         super(Recepture2, self).__init__(parent=parent)
         self.data = data
         self.name = name
-        self.loyout = QtWidgets.QVBoxLayout(self)
-        self.col = Recepture.START_COL
-        Recepture.START_COL += 1
+        self.g_loyout = QtWidgets.QVBoxLayout(self)
+        self.g_loyout.setContentsMargins(10,10,10,10)
+        self.row = 0
+        self.row_p = 0
+        self.setCursor(QtGui.QCursor(QtCore.Qt.CursorShape.PointingHandCursor))
+        self.setObjectName("recepture")
+        self.setStyleSheet("""
+        QFrame#recepture{
+        border: 2px solid #eeedeb;
+        border-radius: 5px;
+        background: #fafafa;;
+        }
+        """)
+
 
         self.nameArea = QtWidgets.QWidget(parent=self)
         self.nameArea.setMaximumSize(QtCore.QSize(300, 16777215))
+        self.nameArea.setMinimumSize(QtCore.QSize(200, 0))
         self.horizontalLayout_5 = QtWidgets.QHBoxLayout(self.nameArea)
         self.horizontalLayout_5.setObjectName("horizontalLayout_5")
+        self.horizontalLayout_5.setContentsMargins(0,0,0,0)
         self.label_name = QtWidgets.QLabel(parent=self.nameArea)
-        self.label_name.setText(self.name)
+        self.label_name.setText(name)
+        font = QtGui.QFont()
+        font.setPointSize(12)
+        self.label_name.setFont(font)
         self.horizontalLayout_5.addWidget(self.label_name)
+
+        # self.empty = QtWidgets.QLabel(parent=self)
+        # self.empty.setText("")
 
         self.pushButton_7 = QtWidgets.QPushButton(parent=self.nameArea)
         self.pushButton_7.setObjectName("pushButton_7")
-        self.horizontalLayout_5.addWidget(self.pushButton_7)
-        self.loyout.addWidget(self.nameArea)
+        self.pushButton_7.setText("...")
+        self.pushButton_7.setStyleSheet("""QPushButton{border:0px solid black;}""")
+        self.horizontalLayout_5.addWidget(self.pushButton_7, alignment=QtCore.Qt.AlignmentFlag.AlignRight)
+        self.g_loyout.addWidget(self.nameArea)
+        # self.g_loyout.addWidget()
 
-        self.consist = QtWidgets.QWidget(parent=self)
+        self.consist = QtWidgets.QFrame(parent=self)
         self.consist.setMaximumSize(QtCore.QSize(300, 16777215))
-        self.gridLayout = QtWidgets.QGridLayout(self.consist)
-        self.gridLayout.setObjectName("gridLayout")
-        for i, (name, amount) in enumerate(zip(self.data[0], self.data[1])):
+        self.vertical_comp_loyout = QtWidgets.QVBoxLayout(self.consist)
+        self.vertical_comp_loyout.setObjectName("gridLayout")
+        self.vertical_comp_loyout.setContentsMargins(0,0,0,5)
+        self.vertical_comp_loyout.setSpacing(1)
+        for name, amount in zip(self.data[0], self.data[1]):
             if name.strip() != '':
-                lable_n = QtWidgets.QLabel(parent=self.consist)
-                lable_n.setText(name)
-                self.gridLayout.addWidget(lable_n, i, 0, 1, 1)
-                lable_a = QtWidgets.QLabel(parent=self.consist)
-                lable_a.setText(amount)
-                self.gridLayout.addWidget(lable_a, i, 1, 1, 1)
-        self.loyout.addWidget(self.consist)
+                self.add_component(name, amount)
+        self.g_loyout.addWidget(self.consist)
 
-        self.ecsperiment = QtWidgets.QWidget(parent=self)
+        self.ecsperiment = QtWidgets.QFrame(parent=self)
+        self.ecsperiment.setObjectName("experimentArea")
+        self.ecsperiment.setStyleSheet("""
+            QFrame#experimentArea{
+            border-top: 2px solid #aaa;
+            }
+        """)
         self.ecsperiment.setMaximumSize(QtCore.QSize(300, 16777215))
-        self.gridLayout_2 = QtWidgets.QGridLayout(self.ecsperiment)
-        for i, (param, value) in enumerate(zip(self.data[2], self.data[3])):
+        self.vertical_exp_loyout = QtWidgets.QVBoxLayout(self.ecsperiment)
+        self.vertical_exp_loyout.setContentsMargins(0,7,0,0)
+        self.vertical_exp_loyout.setSpacing(1)
+        for param, value in zip(self.data[2], self.data[3]):
             if param.strip() != '':
-                lable_p = QtWidgets.QLabel(parent=self.ecsperiment)
-                lable_p.setText(param)
-                self.gridLayout_2.addWidget(lable_p, i, 0, 1, 1)
-                lable_v = QtWidgets.QLabel(parent=self.ecsperiment)
-                lable_v.setText(value)
-                self.gridLayout_2.addWidget(lable_v, i, 1, 1, 1)
+                self.add_experiment(param, value)
 
-        self.loyout.addWidget(self.ecsperiment)
+        self.g_loyout.addWidget(self.ecsperiment)
+
+    def add_component(self, name, value):
+        if len(name) > 30:
+            name = name[0:29] + "..."
+
+        row_w = QtWidgets.QFrame(self.consist)
+        if name != "":
+            row_w.setObjectName("row_c")
+        row_w.setStyleSheet("""
+            QFrame#row_c{
+            border-bottom: 1px solid #eee;
+            border-radius: 2px;
+            background: #fafafa;;
+            }
+        """)
+        self.vertical_comp_loyout.addWidget(row_w)
+        row_l = QtWidgets.QHBoxLayout(row_w)
+        row_l.setContentsMargins(0,0,0,0)
+        row_l.setSpacing(5)
+        lable_n = QtWidgets.QLabel(parent=row_w)
+        lable_n.setText(name)
+        row_l.addWidget(lable_n)
+        lable_a = QtWidgets.QLabel(parent=row_w)
+        lable_a.setText(value)
+        row_l.addWidget(lable_a, alignment=QtCore.Qt.AlignmentFlag.AlignRight)
+        self.row += 1
+
+    def add_experiment(self, name, value):
+        if len(name) > 30:
+            name = name[0:29] + "..."
+
+        row_w = QtWidgets.QFrame(self.ecsperiment)
+        if name != "":
+            row_w.setObjectName("row_c")
+        row_w.setStyleSheet("""
+                    QFrame#row_c{
+                    border-bottom: 1px solid #eee;
+                    border-radius: 2px;
+                    background: #fafafa;;
+                    }
+                """)
 
 
+        self.vertical_exp_loyout.addWidget(row_w)
+        row_l = QtWidgets.QHBoxLayout(row_w)
+        row_l.setContentsMargins(0,0,0,0)
+        row_l.setSpacing(5)
+        lable_p = QtWidgets.QLabel(parent=row_w)
+        lable_p.setText(name)
+        row_l.addWidget(lable_p)
+        lable_v = QtWidgets.QLabel(parent=row_w)
+        lable_v.setText(value)
+        row_l.addWidget(lable_v, alignment=QtCore.Qt.AlignmentFlag.AlignRight)
+        self.row_p += 1
+
+    def get_size(self):
+        return self.row
+
+    def get_size_experiment(self):
+        return self.row_p
