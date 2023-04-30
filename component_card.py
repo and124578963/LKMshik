@@ -533,8 +533,8 @@ class CustomCombobox(QtWidgets.QComboBox):
         self.setStyleSheet("""
 
                 QComboBox {
-                  border-bottom: 1px solid #232b2c;
-                  border-right: 1px solid #232b2c;
+                  border-bottom: 1px solid #aaa;
+                  border-right: 1px solid #aaa;
                   border-radius: 2px;
 
           padding: 2px 5px;
@@ -588,8 +588,8 @@ class CustomEntry(QtWidgets.QLineEdit):
         self.setStyleSheet("""
         
         QLineEdit {
-          border-bottom: 1px solid #232b2c;
-           border-right: 1px solid #232b2c;
+          border-bottom: 1px solid #aaa;
+           border-right: 1px solid #aaa;
           border-radius: 2px;
           padding: 2px 5px;
            padding-right:30px;
