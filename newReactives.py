@@ -33,9 +33,10 @@ class MyComponentsUi(QWidget):
         # self.setDocumentMode(False)
         # self.setUnifiedTitleAndToolBarOnMac(False)
         self.centralwidget = self
+        self.setStyleSheet("QWidget#MainWindow{background:rgb(238, 237, 235)}")
         self.centralwidget.setObjectName("centralwidget")
         self.horizontalLayout = QtWidgets.QHBoxLayout(self.centralwidget)
-        self.horizontalLayout.setContentsMargins(-1, 0, 0, 0)
+        self.horizontalLayout.setContentsMargins(0,0,0,0)
         self.horizontalLayout.setSpacing(0)
         self.horizontalLayout.setObjectName("horizontalLayout")
         self.left_side = QtWidgets.QWidget(parent=self.centralwidget)
@@ -307,7 +308,8 @@ class ToolbarBtn(QtWidgets.QPushButton):
             "del": ["images/del.png", "  Удалить"],
             "setting": ["images/setting.png", ""],
             "add_proj": ["images/add.png", "  Добавить проект"],
-            "warehouse" : ["images/warehouse.png", "  Мои компоненты"]
+            "warehouse": ["images/warehouse.png", "  Мои компоненты"],
+            "edit_proj": ["images/edit_proj.png", "  Изменить проект"],
         }
         self.setSizeIncrement(QtCore.QSize(0, 0))
         self.setCursor(QtGui.QCursor(QtCore.Qt.CursorShape.PointingHandCursor))

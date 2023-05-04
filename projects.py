@@ -15,8 +15,10 @@ from PyQt6.QtWidgets import QAbstractItemView, QWidget, QInputDialog, QLineEdit
 from sqlitedict import SqliteDict
 
 from common.secrets import Secrets
+from common.ui_elements import HoverableButton
 from component_card import CustomEntry
 from newReactives import ToolbarBtn, InfoWindow, MyComponentsUi
+from recepture import Ui_Recepture
 
 
 class Projects_Ui(object):
@@ -98,6 +100,7 @@ class Projects_Ui(object):
         self.horizontalLayout_2.addWidget(self.label_name_project)
 
         self.edit_btn = ProjectToolButton(self.toolbar, "edit")
+        self.edit_btn.clicked.connect(lambda x: self.edit_project())
         self.horizontalLayout_2.addWidget(self.edit_btn)
 
         self.del_proj_btn = ProjectToolButton(self.toolbar, "del")
@@ -131,7 +134,7 @@ class Projects_Ui(object):
 
         # self.main_grid = QtWidgets.QGridLayout(self.scrollAreaWidgetContents)
         self.main_grid = QtWidgets.QVBoxLayout(self.scrollAreaWidgetContents)
-        self.main_grid.setContentsMargins(10, 0, 10, 10)
+        self.main_grid.setContentsMargins(10, 10, 10, 10)
 
         self.scrollArea.setWidget(self.scrollAreaWidgetContents)
         self.verticalLayout_3.addWidget(self.scrollArea)
@@ -238,10 +241,18 @@ class Projects_Ui(object):
                 Projects_Ui.instance.load_data_project()
 
     def add_project(self):
-        if not AddProjectWindow._instance:
+        if not AddProjectWindow.instance:
             dialog = AddProjectWindow()
             self.dialogs.append(dialog)
             dialog.show()
+
+    def edit_project(self):
+        if self.selected_project not in ['Тарировочные_кривые', 'Тарировочные кривые']:
+            if not AddProjectWindow.instance:
+                dialog = EditProjectWindow(self.selected_project)
+                self.dialogs.append(dialog)
+                dialog.show()
+
 
 
 
@@ -343,6 +354,7 @@ class Iteration(QtWidgets.QWidget):
         super(Iteration, self).__init__(parent=parent)
         self.project = project
         self.name = name
+        self.dialogs = []
 
         self.vertical_loyout = QtWidgets.QVBoxLayout(self)
         self.iteration_toolbar = QtWidgets.QWidget(self)
@@ -387,7 +399,7 @@ class Iteration(QtWidgets.QWidget):
 
         list_size = []
         for r_name in self.list_recepture_names:
-            recepture = Recepture(self.iter, r_name, self.iter_data[r_name])
+            recepture = Recepture(self.iter, self.project, self.name, r_name, self.iter_data[r_name])
             self.list_recepture_obj.append(recepture)
             self.loyout.addWidget(recepture)
             list_size.append(recepture.get_size())
@@ -399,8 +411,9 @@ class Iteration(QtWidgets.QWidget):
                 while recepture.get_size() < max_size:
                     recepture.add_component("", "")
 
-        add_iter = AddButtonIteration(self.iter, "recepture")
-        self.loyout.addWidget(add_iter)
+        add_recepture = AddButtonIteration(self.iter, "recepture")
+        add_recepture.set_click_event(lambda: self.add_recepture())
+        self.loyout.addWidget(add_recepture)
 
         spacerItem2 = QtWidgets.QSpacerItem(40, 20, QtWidgets.QSizePolicy.Policy.Expanding,
                                             QtWidgets.QSizePolicy.Policy.Minimum)
@@ -421,18 +434,34 @@ class Iteration(QtWidgets.QWidget):
 
         Projects_Ui.instance.load_data_project()
 
+    def add_recepture(self):
+        name_recepture, ok = QInputDialog().getText(self, "Добавить рецептуру",
+                                          "Название:", QLineEdit.EchoMode.Normal,
+                                          "")
+        if ok and name_recepture:
+            dialog = Ui_Recepture(self.project, self.name, name_recepture)
+            self.dialogs.append(dialog)
+            dialog.show()
+
+
+
 
 class Recepture(QtWidgets.QFrame):
 
-    def __init__(self, parent, name, data):
+    def __init__(self, parent, project, iter, name, data):
         super(Recepture, self).__init__(parent=parent)
         self.setFocusPolicy(Qt.FocusPolicy.ClickFocus | Qt.FocusPolicy.NoFocus)
         self.data = data
         self.name = name
-        self.g_loyout = QtWidgets.QVBoxLayout(self)
-        self.g_loyout.setContentsMargins(10,10,10,10)
+        self.project = project
+        self.iter = iter
         self.row = 0
         self.row_p = 0
+        self.dialogs = []
+
+        self.g_loyout = QtWidgets.QVBoxLayout(self)
+        self.g_loyout.setContentsMargins(10,10,10,10)
+
         self.setCursor(QtGui.QCursor(QtCore.Qt.CursorShape.PointingHandCursor))
         self.setObjectName("recepture")
         self.setStyleSheet("""
@@ -445,7 +474,6 @@ class Recepture(QtWidgets.QFrame):
         border: 2px solid #ffe03a;
         }
         """)
-
 
         self.nameArea = QtWidgets.QWidget(parent=self)
         self.nameArea.setMaximumSize(QtCore.QSize(300, 16777215))
@@ -496,7 +524,6 @@ class Recepture(QtWidgets.QFrame):
         for param, value in zip(self.data[2], self.data[3]):
             if param.strip() != '':
                 self.add_experiment(param, value)
-
         self.g_loyout.addWidget(self.ecsperiment)
 
     def add_component(self, name, value):
@@ -559,6 +586,15 @@ class Recepture(QtWidgets.QFrame):
     def get_size_experiment(self):
         return self.row_p
 
+    def mouseDoubleClickEvent(self, event):
+        super(Recepture, self).mouseDoubleClickEvent(event)
+        self.open_recepture(self.name)
+
+    def open_recepture(self, name_r):
+        dialog = Ui_Recepture(self.project, self.iter, name_r)
+        self.dialogs.append(dialog)
+        dialog.show()
+
 
 class AddButtonIteration(QtWidgets.QFrame):
     hover = QtCore.pyqtSignal(str)
@@ -585,7 +621,6 @@ class AddButtonIteration(QtWidgets.QFrame):
             "iter": ["images/add_iter.png", "images/add_iter-on.png"],
             "recepture": ["images/add_iter.png", "images/add_iter-on.png"],
         }
-
 
         self.icon = QtGui.QIcon()
         self.icon.addPixmap(QtGui.QPixmap(img_dict[_type][0]), QtGui.QIcon.Mode.Normal, QtGui.QIcon.State.Off)
@@ -632,14 +667,15 @@ class AddButtonIteration(QtWidgets.QFrame):
 
 
 class AddProjectWindow(QtWidgets.QWidget):
-    _instance = None
+    instance = None
 
-    def __init__(self):
+    def __init__(self, btn_type="add_proj"):
         super().__init__()
-        AddProjectWindow._instance = self
+        AddProjectWindow.instance = self
         self.setObjectName("Form")
         self.row = 0
         self.setMinimumSize(500, 400)
+        self.setMaximumSize(600, 999999)
         self.list_entry_name_obj = []
         self.list_entry_value_obj = []
         self.verticalLayout = QtWidgets.QVBoxLayout(self)
@@ -678,14 +714,30 @@ class AddProjectWindow(QtWidgets.QWidget):
         h_loyout.addWidget(val_lable)
         self.verticalLayout_3.addWidget(self.labels_w)
 
-        self.params_widget = QtWidgets.QWidget(parent=self.general_tab)
-        self.params_widget.setObjectName("params_widget")
+        self.scrollArea = QtWidgets.QScrollArea(parent=self.general_tab)
+        self.scrollArea.setWidgetResizable(True)
+        self.scrollArea.setObjectName("scrollArea")
+        self.scrollArea.setStyleSheet("""
+                QWidget#scrollAreaWidgetContents{
+                          background: #f9f9f9;
+                          border: 0px solid black;
+                          }
+                QScrollArea#scrollArea{
+                   background: #f9f9f9;
+                   border: 0px solid #bbb;
+                   }          
+                          """)
+        self.params_widget = QtWidgets.QWidget()
+        self.params_widget.setGeometry(QtCore.QRect(0, 0, 796, 800))
+        self.params_widget.setObjectName("scrollAreaWidgetContents")
+
+        self.scrollArea.setWidget(self.params_widget)
+        self.verticalLayout_3.addWidget(self.scrollArea)
         self.verticalLayout_2 = QtWidgets.QVBoxLayout(self.params_widget)
         self.verticalLayout_2.setContentsMargins(0, 0, 0, 0)
         self.verticalLayout_2.setSpacing(2)
         self.verticalLayout_2.setObjectName("verticalLayout_2")
-        self.add_default_rows()
-        self.verticalLayout_3.addWidget(self.params_widget)
+        self.scrollArea.setWidgetResizable(True)
 
         self.button_w = QtWidgets.QWidget(parent=self.general_tab)
         self.button_w.setObjectName("button_w")
@@ -693,7 +745,7 @@ class AddProjectWindow(QtWidgets.QWidget):
         self.horizontalLayout_4.setContentsMargins(0, 0, 0, 0)
         self.horizontalLayout_4.setObjectName("horizontalLayout_4")
         self.plus = HoverableButton(self.button_w, "plus", [24, 24])
-        self.plus.set_click_event(lambda: self.add_row())
+        self.plus.clicked.connect(lambda: self.add_row())
         self.horizontalLayout_4.addWidget(self.plus, alignment=QtCore.Qt.AlignmentFlag.AlignCenter)
 
         self.verticalLayout_3.addWidget(self.button_w)
@@ -701,10 +753,10 @@ class AddProjectWindow(QtWidgets.QWidget):
                                            QtWidgets.QSizePolicy.Policy.Expanding)
         self.verticalLayout_3.addItem(spacerItem)
 
-        self.save_btn = ToolbarBtn(self.general_tab, "add_proj")
+        self.save_btn = ToolbarBtn(self.general_tab, btn_type)
         self.save_btn.clicked.connect(lambda x: self.save_data())
         self.verticalLayout_3.addWidget(self.save_btn)
-        self.tabWidget.addTab(self.general_tab, "Основные")
+
 
         self.descript_tab = QtWidgets.QWidget()
         self.descript_tab.setObjectName("descript_tab")
@@ -714,11 +766,12 @@ class AddProjectWindow(QtWidgets.QWidget):
         self.textEdit.setObjectName("textEdit")
         self.textEdit.setContentsMargins(0, 0, 0, 0)
         self.verticalLayout_4.addWidget(self.textEdit)
-        self.save_btn = ToolbarBtn(self.descript_tab, "add_proj")
+        self.save_btn = ToolbarBtn(self.descript_tab, btn_type)
         self.save_btn.setContentsMargins(9, 9, 9, 9)
         self.save_btn.clicked.connect(lambda x: self.save_data())
         self.verticalLayout_4.addWidget(self.save_btn)
-
+        self.add_default_rows()
+        self.tabWidget.addTab(self.general_tab, "Основные")
         self.tabWidget.addTab(self.descript_tab, "Описание")
         self.verticalLayout.addWidget(self.tabWidget)
 
@@ -747,7 +800,7 @@ class AddProjectWindow(QtWidgets.QWidget):
         for i in default:
             self.add_row(text=i)
 
-    def add_row(self, text=""):
+    def add_row(self, text="", value_text=""):
         row_param = QtWidgets.QWidget(parent=self.params_widget)
         horizontalLayout = QtWidgets.QHBoxLayout(row_param)
         horizontalLayout.setContentsMargins(0, 0, 0, 0)
@@ -757,11 +810,12 @@ class AddProjectWindow(QtWidgets.QWidget):
         horizontalLayout.addWidget(name)
 
         value = CustomEntry(parent=row_param)
+        value.setText(value_text)
         value.setMaximumSize(QtCore.QSize(125, 16777215))
         self.list_entry_value_obj.append(value)
         horizontalLayout.addWidget(value)
         minus = HoverableButton(row_param, "minus", [16, 16])
-        minus.set_click_event(lambda _index=self.row, frame=row_param: self.del_row(_index, frame))
+        minus.clicked.connect(lambda _index=self.row, frame=row_param: self.del_row(_index, frame))
         minus.setObjectName("minus")
         horizontalLayout.addWidget(minus, alignment=QtCore.Qt.AlignmentFlag.AlignLeft)
 
@@ -773,8 +827,7 @@ class AddProjectWindow(QtWidgets.QWidget):
         self.list_entry_name_obj[_index] = None
         row_w.deleteLater()
 
-    def save_data(self):
-        password = ""
+    def collect_data(self):
         data_params = []
         data_params_value = []
         for name, value in zip(self.list_entry_name_obj, self.list_entry_value_obj):
@@ -786,6 +839,12 @@ class AddProjectWindow(QtWidgets.QWidget):
 
         name_project = self.name_lineEdit.text().strip()
         description = self.textEdit.toPlainText()
+
+        return (name_project, data_params, data_params_value, description)
+
+    def save_data(self):
+        password = ""
+        name_project, data_params, data_params_value, description = self.collect_data()
 
         projects = os.listdir('saves/')
         if name_project not in projects and name_project != "":
@@ -807,9 +866,12 @@ class AddProjectWindow(QtWidgets.QWidget):
                 mydict['description'] = description
 
                 mydict.commit()
+            Projects_Ui.instance.load_list_projects()
+            self.closeEvent(None)
+            self.destroy()
 
     def closeEvent(self, event):
-        AddProjectWindow._instance = None
+        AddProjectWindow.instance = None
 
     def retranslateUi(self, Form):
         _translate = QtCore.QCoreApplication.translate
@@ -817,67 +879,89 @@ class AddProjectWindow(QtWidgets.QWidget):
 
 
 class EditProjectWindow(AddProjectWindow):
-    def __init__(self):
-        super(EditProjectWindow, self).__init__()
+
+    instance = None
+    def __init__(self, project_name):
+        self.project_name = project_name
+        AddProjectWindow.instance = self
+        super(EditProjectWindow, self).__init__(btn_type="edit_proj")
+        self.setWindowTitle(f"Редактирование проекта - {self.project_name}")
 
 
-class HoverableButton(QtWidgets.QPushButton):
-    hover = QtCore.pyqtSignal(str)
+    def add_default_rows(self):
+        password = ""
 
-    def __init__(self, parent, _type, size):
-        super(HoverableButton, self).__init__(parent=parent)
-        self.click_event = None
-        self.setCursor(QtGui.QCursor(QtCore.Qt.CursorShape.PointingHandCursor))
-        tooltip_dict = {
-            "plus": "Добавить строку",
-            "minus": "Удалить строку"
-        }
-        self.setToolTip(tooltip_dict[_type])
+        self.name_lineEdit.setText(self.project_name)
+        dec_data_params = []
+        dec_data_params_value = []
+        with SqliteDict('saves/' + self.project_name + '/params') as mydict:
+            enc_data_params = mydict['params']
+            enc_data_params_value = mydict['params_value']
+            description = mydict.get('description', None)
+            if self.project_name not in ['Тарировочные_кривые', 'Тарировочные кривые', 'Примеры']:
+                for params, params_value in zip(enc_data_params, enc_data_params_value):
+                    dec_data_params.append(Secrets().symmetric_decrypt(params, password).decode())
+                    dec_data_params_value.append(Secrets().symmetric_decrypt(params_value, password).decode())
+                if description:
+                    description = Secrets().symmetric_decrypt(description, password).decode()
+            else:
+                dec_data_params = enc_data_params
+                dec_data_params_value = enc_data_params_value
 
-        img_dict = {
-            "plus": ["images/plus.png", "images/plus-on.png"],
-            "minus": ["images/minus.png", "images/minus-on.png"],
-        }
-        self.icon = QtGui.QIcon()
-        self.icon.addPixmap(QtGui.QPixmap(img_dict[_type][0]), QtGui.QIcon.Mode.Normal, QtGui.QIcon.State.Off)
-        self.icon_on = QtGui.QIcon()
-        self.icon_on.addPixmap(QtGui.QPixmap(img_dict[_type][1]), QtGui.QIcon.Mode.Normal, QtGui.QIcon.State.Off)
-        self.setIcon(self.icon)
-        self.setIconSize(QtCore.QSize(*size))
 
-        self.setStyleSheet("""
-                 QPushButton {
-            border: 0px;
-             color: rgb(27, 37, 36);
-            }
-            QPushButton::pressed {
-            padding-bottom: 0px;
-            padding-right: 0px;
-            }
-            QWidget{
-            padding-bottom: 2px;
-            padding-right: 2px;
-            }
-                """)
+        self.textEdit.setText(description)
+        for name, value in zip(dec_data_params, dec_data_params_value):
+            self.add_row(text=name, value_text=value)
 
-    def enterEvent(self, event):
-        self.hover.emit("enterEvent")
-        self.setIcon(self.icon_on)
+    def save_data(self):
+        password = ""
 
-    def leaveEvent(self, event):
-        self.hover.emit("leaveEvent")
-        self.setIcon(self.icon)
+        name_project = self.project_name
+        edited_name_project, data_params, data_params_value, description = self.collect_data()
 
-    def mouseReleaseEvent(self, event):
-        super().mouseReleaseEvent(event)
-        click_event = self.get_click_event()
-        if click_event:
-            click_event()
+        projects = os.listdir('saves/')
+        if name_project != edited_name_project:
+            if edited_name_project not in projects:
+                os.rename('saves/' + name_project, 'saves/' + edited_name_project)
+                enc_data_params = []
+                enc_data_params_value = []
+                if edited_name_project not in ['Тарировочные_кривые', 'Примеры']:
+                    for params, params_value in zip(data_params, data_params_value):
+                        enc_data_params.append(Secrets().symmetric_encrypt(params.encode(), password))
+                        enc_data_params_value.append(Secrets().symmetric_encrypt(params_value.encode(), password))
+                    description = Secrets().symmetric_encrypt(description.encode(), password)
+                else:
+                    enc_data_params = data_params
+                    enc_data_params_value = data_params_value
 
-    def set_click_event(self, func):
-        self.click_event = func
-        self.clicked.connect(func)
+                with SqliteDict('saves/' + edited_name_project + '/params') as mydict:
+                    mydict['params'] = enc_data_params
+                    mydict['params_value'] = enc_data_params_value
+                    mydict['description'] = description
+                    mydict.commit()
+        else:
+            enc_data_params = []
+            enc_data_params_value = []
+            if edited_name_project not in ['Тарировочные_кривые', 'Примеры']:
+                for params, params_value in zip(data_params, data_params_value):
+                    enc_data_params.append(Secrets().symmetric_encrypt(params.encode(), password))
+                    enc_data_params_value.append(Secrets().symmetric_encrypt(params_value.encode(), password))
+                description = Secrets().symmetric_encrypt(description.encode(), password)
+            else:
+                enc_data_params = data_params
+                enc_data_params_value = data_params_value
 
-    def get_click_event(self):
-        return self.click_event
+            with SqliteDict('saves/' + edited_name_project + '/params') as mydict:
+                mydict['params'] = enc_data_params
+                mydict['params_value'] = enc_data_params_value
+                mydict['description'] = description
+                mydict.commit()
+
+        Projects_Ui.instance.load_list_projects()
+        Projects_Ui.instance.select_project(edited_name_project)
+        self.closeEvent(None)
+        self.destroy()
+
+    def closeEvent(self, event):
+        AddProjectWindow.instance = None
 
