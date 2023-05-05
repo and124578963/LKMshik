@@ -18,7 +18,7 @@ from common.secrets import Secrets
 from common.ui_elements import HoverableButton
 from component_card import CustomEntry
 from newReactives import ToolbarBtn, InfoWindow, MyComponentsUi
-from recepture import Ui_Recepture
+from recepture import ReceptureWindow
 
 
 class Projects_Ui(object):
@@ -439,7 +439,7 @@ class Iteration(QtWidgets.QWidget):
                                           "Название:", QLineEdit.EchoMode.Normal,
                                           "")
         if ok and name_recepture:
-            dialog = Ui_Recepture(self.project, self.name, name_recepture)
+            dialog = ReceptureWindow(self.project, self.name, name_recepture)
             self.dialogs.append(dialog)
             dialog.show()
 
@@ -591,7 +591,7 @@ class Recepture(QtWidgets.QFrame):
         self.open_recepture(self.name)
 
     def open_recepture(self, name_r):
-        dialog = Ui_Recepture(self.project, self.iter, name_r)
+        dialog = ReceptureWindow(self.project, self.iter, name_r)
         self.dialogs.append(dialog)
         dialog.show()
 

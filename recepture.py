@@ -1,14 +1,23 @@
-from PyQt6 import QtCore, QtGui, QtWidgets
+import copy
 
+from PyQt6 import QtCore, QtGui, QtWidgets
+from sqlitedict import SqliteDict
+
+from common.secrets import Secrets
 from common.ui_elements import HoverableButton
 
 
-class Ui_Recepture(QtWidgets.QWidget):
+class ReceptureWindow(QtWidgets.QWidget):
     def __init__(self, project_name: str, iter_name: str, name: str):
-        super(Ui_Recepture, self).__init__()
+        super(ReceptureWindow, self).__init__()
         self.project = project_name
         self.iter = iter_name
         self.name = name
+        self.recepture_data = ReceptureDataModel(project_name, iter_name, name)
+        self.recepture_data.load_data()
+        print(self.recepture_data.component_list)
+
+
         self.setWindowTitle(self.name)
         self.verticalLayout_3 = QtWidgets.QVBoxLayout(self)
         self.verticalLayout_3.setContentsMargins(0, 0, 0, 0)
@@ -62,9 +71,12 @@ class Ui_Recepture(QtWidgets.QWidget):
         self.minus_2.setObjectName("minus_2")
         self.horizontalLayout_5.addWidget(self.minus_2)
         self.verticalLayout.addWidget(self.row_comment)
+
+
         self.row = QtWidgets.QWidget(parent=self.recepture)
         self.row.setObjectName("row")
         self.horizontalLayout_4 = QtWidgets.QHBoxLayout(self.row)
+
         self.horizontalLayout_4.setContentsMargins(0, 0, 0, 0)
         self.horizontalLayout_4.setObjectName("horizontalLayout_4")
         self.number_l = QtWidgets.QLabel(parent=self.row)
@@ -84,6 +96,8 @@ class Ui_Recepture(QtWidgets.QWidget):
         self.swap = QtWidgets.QToolButton(parent=self.row)
         self.swap.setObjectName("swap")
         self.horizontalLayout_4.addWidget(self.swap)
+
+
         self.minus = QtWidgets.QToolButton(parent=self.row)
         self.minus.setObjectName("minus")
         self.horizontalLayout_4.addWidget(self.minus)
@@ -364,3 +378,172 @@ class Ui_Recepture(QtWidgets.QWidget):
         self.tabWidget.setTabText(self.tabWidget.indexOf(self.experimental_tab),
                                   _translate("MainWindow", "Эксперимент"))
         self.tabWidget.setTabText(self.tabWidget.indexOf(self.description_tab), _translate("MainWindow", "Заметки"))
+
+
+class ComponentRow(QtWidgets.QWidget):
+    def __init__(self, parent):
+        super(ComponentRow, self).__init__(parent=parent)
+
+
+class ReceptureDataModel:
+    def __init__(self, project, iteration, name):
+        self.project = project
+        self.iteration = iteration
+        self.name = name
+        self.not_encoded_projects = ['Тарировочные_кривые', 'Тарировочные кривые', 'Примеры']
+
+        self.project_params = []
+        self.project_params_value = []
+        self.password = ""
+        self.component_list = []
+        self.component_list_2 = []
+        self.experiment_list = []
+        self.notes = ""
+
+        self.flag_2k = False
+        self.price_K = 1.0
+        self.accurate_density = 0.0
+
+        self.price = 0
+        self.mass_unflyable = 0
+        self.sp = 0
+        self.okp = 0
+        self.oil = 0
+        self.kn = 0
+        self.hiding_pigm = 0
+        self.hiding_wet = 0
+        self.philum = 0
+        self.kokp = 0
+        self.hiding_dry = 0
+        self.density = 0
+
+    def map_encrypt(self, str):
+        global password
+        if self.project not in self.not_encoded_projects:
+            result = Secrets().symmetric_encrypt(str.encode(), password)
+        else:
+            result = str
+        return result
+
+    def map_decrypt(self, byte):
+        if self.project not in self.not_encoded_projects:
+            result = Secrets().symmetric_decrypt(byte, password).decode()
+        else:
+            result = byte
+        return result
+
+    def load_data(self):
+        with SqliteDict('saves/' + self.project + '/params') as mydict:
+            enc_data_params = mydict['params']
+            enc_data_params_value = mydict['params_value']
+            if self.project not in self.not_encoded_projects:
+                for params, params_value in zip(enc_data_params, enc_data_params_value):
+                    self.project_params.append(Secrets().symmetric_decrypt(params, self.password).decode())
+                    self.project_params_value.append(Secrets().symmetric_decrypt(params_value, self.password).decode())
+            else:
+                self.project_params = enc_data_params
+                self.project_params_value = enc_data_params_value
+
+
+        with SqliteDict('saves/' + self.project + '/' + self.iteration) as mydict:
+            data_iteraton = dict(mydict)
+            self.data = data_iteraton.get(self.name, None)
+
+            # [0] - реактивы, [1]- масса реактивов, [2] - эксперимент параметры,
+            # [3] - полученны значения, [4] - заметки, [5] - ТЗ, [6] - расчетные характеристики,
+            # [7] - реактивы 2к, [8] - масса реактивов 2к, [9] - dict params
+        if self.data is None:
+            return
+
+        if len(self.data) > 9:
+            configs = self.data.pop(9)
+            self.price_K = configs.get('price_K', 1.0)
+            self.accurate_density = configs.get('accurate_density', 0.0)
+
+        for i, param in enumerate(self.data):
+            self.data[i] = list(map(self.map_decrypt, param))
+
+        self.component_list = list(zip(self.data[0], self.data[1]))
+        self.component_list_2 = list(zip(self.data[7], self.data[8]))
+        self.experiment_list = list(zip(self.data[2], self.data[5], self.data[3]))
+        self.notes = self.data[4]
+
+        # self.properies=['Цена','м.д.н.в','СП','ОКП','Масло','Кп','Ср укрыв','Укрыв сух пленки','Филум', 'КОКП', 'Укр мокрой пл', 'плотность']
+        properties = self.data[6]
+        self.price = properties[0]
+        self.mass_unflyable = properties[1]
+        self.sp = properties[2]
+        self.okp = properties[3]
+        self.oil = properties[4]
+        self.kn = properties[5]
+        self.hiding_pigm = properties[6]
+        self.hiding_wet = properties[7]
+        self.philum = properties[8]
+        self.kokp = properties[9]
+        self.hiding_dry = properties[10]
+        self.density = properties[11]
+
+        if len(self.component_list_2) > 0:
+            self.flag_2k = True
+
+    def collect_data(self):
+        pass
+
+    def save_data(self, event=None):
+        self.collect_data()
+
+        # [0] - реактивы, [1]- масса реактивов, [2] - эксперимент параметры,
+        # [3] - полученны значения, [4] - заметки, [5] - ТЗ, [6] - расчетные характеристики,
+        # [7] - реактивы 2к, [8] - масса реактивов 2к, [9] - dict params
+
+        reactives = []
+        reactives_mass = []
+        reactives_2 = []
+        reactives_mass_2 = []
+        experiment_params = []
+        experiment_value = []
+        needed_experiment_value = []
+        dict_params = {}
+
+        for name, value in self.component_list:
+            reactives.append(name)
+            reactives_mass.append(value)
+        for name, value in self.component_list_2:
+            reactives_2.append(name)
+            reactives_mass_2.append(value)
+        for name, need, value in self.experiment_list:
+            experiment_params.append(name)
+            experiment_value.append(value)
+            needed_experiment_value.append(need)
+
+        properies = [
+            self.price,
+            self.mass_unflyable,
+            self.sp,
+            self.okp,
+            self.oil,
+            self.kn,
+            self.hiding_pigm,
+            self.hiding_wet,
+            self.philum,
+            self.kokp,
+            self.hiding_dry,
+            self.density,
+        ]
+
+        dict_params['price_K'] = self.price_K
+        dict_params['accurate_density'] =  self.accurate_density
+
+        with SqliteDict('saves/' + self.project + '/' + self.iteration) as mydict:
+            mydict[self.name] = [list(map(self.map_encrypt, reactives)),
+                                 list(map(self.map_encrypt, reactives_mass)),
+                                 list(map(self.map_encrypt, experiment_params)),
+                                 list(map(self.map_encrypt, experiment_value)),
+                                 list(map(self.map_encrypt, [self.notes, ]))[0],
+                                 list(map(self.map_encrypt, needed_experiment_value)),
+                                 list(map(self.map_encrypt, properies)),
+                                 list(map(self.map_encrypt, reactives_2)),
+                                 list(map(self.map_encrypt, reactives_mass_2)),
+                                 dict_params,
+                                 ]
+            mydict.commit()
