@@ -516,6 +516,26 @@ class DB:
                 check = True if fetchall == None else False
                 return check
 
+
+    @connect_db_decorator
+    def check_group_reactives(self, group, search1):
+        self.c.execute(f'''SELECT Name FROM {group} WHERE LOWER(DECODE(Name)) LIKE LOWER(?)''', [search1])
+        fetchall = self.c.fetchall()
+        decode_fetchall = []
+        for item in fetchall:
+            item_list = []
+            for value in item:
+                if type(value) != int:
+                    if ENCRYPT_REACTIVES:
+                        item_list.append(self.symmetric_decrypt(bytes(value), password).decode())
+                    else:
+                        item_list.append(value)
+                else:
+                    item_list.append(value)
+            decode_fetchall.append(item_list)
+        return decode_fetchall
+
+
     @connect_db_decorator
     def update_reactives_base(self):
         url = 'http://and124xw.beget.tech/export'

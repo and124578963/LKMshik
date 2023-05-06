@@ -4,8 +4,9 @@ from PyQt6 import QtCore, QtGui, QtWidgets
 from sqlitedict import SqliteDict
 
 from common.secrets import Secrets
-from common.ui_elements import HoverableButton
-
+from common.ui_elements import HoverableButton, MenuButton
+from database import DB
+from typing import List
 
 class ReceptureWindow(QtWidgets.QWidget):
     def __init__(self, project_name: str, iter_name: str, name: str):
@@ -15,8 +16,9 @@ class ReceptureWindow(QtWidgets.QWidget):
         self.name = name
         self.recepture_data = ReceptureDataModel(project_name, iter_name, name)
         self.recepture_data.load_data()
-        print(self.recepture_data.component_list)
 
+        self.list_comp_row_obj = []
+        self.list_comp_2_row_obj = []
 
         self.setWindowTitle(self.name)
         self.verticalLayout_3 = QtWidgets.QVBoxLayout(self)
@@ -39,108 +41,105 @@ class ReceptureWindow(QtWidgets.QWidget):
         self.widget.setObjectName("widget")
         self.horizontalLayout_6 = QtWidgets.QHBoxLayout(self.widget)
         self.horizontalLayout_6.setObjectName("horizontalLayout_6")
+
         self.scrollArea = QtWidgets.QScrollArea(parent=self.widget)
-        self.scrollArea.setMinimumSize(QtCore.QSize(350, 0))
-        self.scrollArea.setMaximumSize(QtCore.QSize(405, 16777215))
+        self.scrollArea.setMinimumSize(QtCore.QSize(400, 0))
+        self.scrollArea.setMaximumSize(QtCore.QSize(400, 16777215))
         self.scrollArea.setWidgetResizable(True)
         self.scrollArea.setObjectName("scrollArea")
+        self.widget.setStyleSheet("""
+                        QWidget#recepture{
+                                  background: #f9f9f9;
+                                  border: 0px solid black;
+                                  }
+                        QScrollArea#scrollArea{
+                           background: #f9f9f9;
+                           border: 0px solid #bbb;
+                           }          
+                                  """)
         self.recepture = QtWidgets.QWidget()
         self.recepture.setGeometry(QtCore.QRect(0, 0, 403, 485))
         self.recepture.setObjectName("recepture")
         self.verticalLayout = QtWidgets.QVBoxLayout(self.recepture)
-        self.verticalLayout.setObjectName("verticalLayout")
-        self.row_comment = QtWidgets.QWidget(parent=self.recepture)
-        self.row_comment.setObjectName("row_comment")
-        self.horizontalLayout_5 = QtWidgets.QHBoxLayout(self.row_comment)
-        self.horizontalLayout_5.setContentsMargins(25, 0, 0, 0)
-        self.horizontalLayout_5.setSpacing(0)
-        self.horizontalLayout_5.setObjectName("horizontalLayout_5")
-        self.comment = QtWidgets.QPlainTextEdit(parent=self.row_comment)
-        sizePolicy = QtWidgets.QSizePolicy(QtWidgets.QSizePolicy.Policy.Minimum, QtWidgets.QSizePolicy.Policy.Minimum)
-        sizePolicy.setHorizontalStretch(0)
-        sizePolicy.setVerticalStretch(0)
-        sizePolicy.setHeightForWidth(self.comment.sizePolicy().hasHeightForWidth())
-        self.comment.setSizePolicy(sizePolicy)
-        self.comment.setMaximumSize(QtCore.QSize(350, 50))
-        self.comment.setObjectName("comment")
-        self.horizontalLayout_5.addWidget(self.comment)
-        self.swap_2 = QtWidgets.QToolButton(parent=self.row_comment)
-        self.swap_2.setObjectName("swap_2")
-        self.horizontalLayout_5.addWidget(self.swap_2)
-        self.minus_2 = QtWidgets.QToolButton(parent=self.row_comment)
-        self.minus_2.setObjectName("minus_2")
-        self.horizontalLayout_5.addWidget(self.minus_2)
-        self.verticalLayout.addWidget(self.row_comment)
+        self.verticalLayout.setContentsMargins(0,0,0,0)
+        self.verticalLayout.setSpacing(2)
 
 
-        self.row = QtWidgets.QWidget(parent=self.recepture)
-        self.row.setObjectName("row")
-        self.horizontalLayout_4 = QtWidgets.QHBoxLayout(self.row)
-
-        self.horizontalLayout_4.setContentsMargins(0, 0, 0, 0)
-        self.horizontalLayout_4.setObjectName("horizontalLayout_4")
-        self.number_l = QtWidgets.QLabel(parent=self.row)
-        self.number_l.setObjectName("number_l")
-        self.horizontalLayout_4.addWidget(self.number_l)
-        self.category_icon = QtWidgets.QLabel(parent=self.row)
-        self.category_icon.setObjectName("category_icon")
-        self.horizontalLayout_4.addWidget(self.category_icon)
-        self.name_comp = QtWidgets.QComboBox(parent=self.row)
-        self.name_comp.setMinimumSize(QtCore.QSize(250, 0))
-        self.name_comp.setObjectName("name")
-        self.horizontalLayout_4.addWidget(self.name_comp)
-        self.amount = QtWidgets.QLineEdit(parent=self.row)
-        self.amount.setMaximumSize(QtCore.QSize(50, 16777215))
-        self.amount.setObjectName("amount")
-        self.horizontalLayout_4.addWidget(self.amount)
-        self.swap = QtWidgets.QToolButton(parent=self.row)
-        self.swap.setObjectName("swap")
-        self.horizontalLayout_4.addWidget(self.swap)
 
 
-        self.minus = QtWidgets.QToolButton(parent=self.row)
-        self.minus.setObjectName("minus")
-        self.horizontalLayout_4.addWidget(self.minus)
-        self.verticalLayout.addWidget(self.row)
-        self.buttons = QtWidgets.QWidget(parent=self.recepture)
+        # self.row_comment = QtWidgets.QWidget(parent=self.recepture)
+        # self.row_comment.setObjectName("row_comment")
+        # self.horizontalLayout_5 = QtWidgets.QHBoxLayout(self.row_comment)
+        # self.horizontalLayout_5.setContentsMargins(25, 0, 0, 0)
+        # self.horizontalLayout_5.setSpacing(0)
+        # self.horizontalLayout_5.setObjectName("horizontalLayout_5")
+        # self.comment = QtWidgets.QPlainTextEdit(parent=self.row_comment)
+        # sizePolicy = QtWidgets.QSizePolicy(QtWidgets.QSizePolicy.Policy.Minimum, QtWidgets.QSizePolicy.Policy.Minimum)
+        # sizePolicy.setHorizontalStretch(0)
+        # sizePolicy.setVerticalStretch(0)
+        # sizePolicy.setHeightForWidth(self.comment.sizePolicy().hasHeightForWidth())
+        # self.comment.setSizePolicy(sizePolicy)
+        # self.comment.setMaximumSize(QtCore.QSize(350, 40))
+        # self.comment.setObjectName("comment")
+        # self.horizontalLayout_5.addWidget(self.comment)
+        # self.swap_2 = QtWidgets.QToolButton(parent=self.row_comment)
+        # self.swap_2.setObjectName("swap_2")
+        # self.horizontalLayout_5.addWidget(self.swap_2)
+        # self.minus_2 = QtWidgets.QToolButton(parent=self.row_comment)
+        # self.minus_2.setObjectName("minus_2")
+        # self.horizontalLayout_5.addWidget(self.minus_2)
+        # self.verticalLayout.addWidget(self.row_comment)
+
+        self.component_one = QtWidgets.QWidget(self.recepture)
+        self.component_one.setGeometry(QtCore.QRect(0, 0, 403, 485))
+        self.component_one.setObjectName("recepture")
+        self.component_one_l = QtWidgets.QVBoxLayout(self.component_one)
+        self.component_one_l.setContentsMargins(0, 0, 0, 0)
+        self.component_one_l.setSpacing(2)
+
+        self.buttons = QtWidgets.QWidget(parent=self.component_one)
         self.buttons.setObjectName("buttons")
         self.horizontalLayout_7 = QtWidgets.QHBoxLayout(self.buttons)
+        self.horizontalLayout_7.setContentsMargins(0, 0, 0, 0)
         self.horizontalLayout_7.setObjectName("horizontalLayout_7")
-        self.btn_2k = QtWidgets.QPushButton(parent=self.buttons)
-        self.btn_2k.setObjectName("btn_2k")
-        self.horizontalLayout_7.addWidget(self.btn_2k)
-        self.plus = QtWidgets.QPushButton(parent=self.buttons)
-        self.plus.setObjectName("plus")
-        self.horizontalLayout_7.addWidget(self.plus)
-        self.verticalLayout.addWidget(self.buttons)
-        self.all_amount_w = QtWidgets.QWidget(parent=self.recepture)
-        self.all_amount_w.setLayoutDirection(QtCore.Qt.LayoutDirection.LeftToRight)
-        self.all_amount_w.setAutoFillBackground(False)
-        self.all_amount_w.setObjectName("all_amount_w")
-        self.horizontalLayout_8 = QtWidgets.QHBoxLayout(self.all_amount_w)
-        self.horizontalLayout_8.setSpacing(9)
-        self.horizontalLayout_8.setObjectName("horizontalLayout_8")
-        self.amount_all_l = QtWidgets.QLabel(parent=self.all_amount_w)
-        self.amount_all_l.setAlignment(
-            QtCore.Qt.AlignmentFlag.AlignRight | QtCore.Qt.AlignmentFlag.AlignTrailing | QtCore.Qt.AlignmentFlag.AlignVCenter)
-        self.amount_all_l.setObjectName("amount_all_l")
-        self.horizontalLayout_8.addWidget(self.amount_all_l)
-        self.amount_all_value = QtWidgets.QLabel(parent=self.all_amount_w)
-        self.amount_all_value.setMaximumSize(QtCore.QSize(80, 16777215))
-        self.amount_all_value.setLayoutDirection(QtCore.Qt.LayoutDirection.LeftToRight)
-        self.amount_all_value.setAlignment(
-            QtCore.Qt.AlignmentFlag.AlignLeading | QtCore.Qt.AlignmentFlag.AlignLeft | QtCore.Qt.AlignmentFlag.AlignVCenter)
-        self.amount_all_value.setObjectName("amount_all_value")
-        self.horizontalLayout_8.addWidget(self.amount_all_value)
-        self.recount_btn = QtWidgets.QToolButton(parent=self.all_amount_w)
-        self.recount_btn.setObjectName("recount_btn")
-        self.horizontalLayout_8.addWidget(self.recount_btn)
-        self.verticalLayout.addWidget(self.all_amount_w)
+        self.btn_2k = HoverableButton(self.buttons, "2k", (20, 20))
+        self.btn_2k.clicked.connect(self.show_2k)
+        self.horizontalLayout_7.addWidget(self.btn_2k, alignment=QtCore.Qt.AlignmentFlag.AlignRight)
+        self.plus = HoverableButton(self.buttons, "plus_2", (20, 20))
+        self.plus.clicked.connect(lambda x: self.add_row("one"))
+        self.horizontalLayout_7.addWidget(self.plus, alignment=QtCore.Qt.AlignmentFlag.AlignLeft)
+        self.component_one_l.addWidget(self.buttons)
+
+        self.verticalLayout.addWidget(self.component_one)
+
+
+        self.component_two = QtWidgets.QWidget(self.recepture)
+        self.component_two.setGeometry(QtCore.QRect(0, 0, 403, 485))
+        self.component_two.setObjectName("recepture")
+        self.component_two_l = QtWidgets.QVBoxLayout(self.component_two)
+        self.component_two_l.setContentsMargins(0, 0, 0, 0)
+        self.component_two_l.setSpacing(2)
+
+        self.plus_2 = MenuButton(self.component_two, "plus_2", (20, 20))
+        self.plus_2.clicked.connect(lambda x: self.add_row("two"))
+        self.component_two_l.addWidget(self.plus_2, alignment=QtCore.Qt.AlignmentFlag.AlignCenter)
+
+        self.verticalLayout.addWidget(self.component_two)
         spacerItem1 = QtWidgets.QSpacerItem(20, 40, QtWidgets.QSizePolicy.Policy.Minimum,
                                             QtWidgets.QSizePolicy.Policy.Expanding)
         self.verticalLayout.addItem(spacerItem1)
+
+        for name, value in self.recepture_data.component_list:
+            self.add_row("one", name=name, value=value)
+        for name, value in self.recepture_data.component_list_2:
+            self.add_row("two", name=name, value=value)
+
+        if not self.recepture_data.flag_2k:
+            self.component_two.hide()
+
         self.scrollArea.setWidget(self.recepture)
         self.horizontalLayout_6.addWidget(self.scrollArea)
+
         self.right_side = QtWidgets.QWidget(parent=self.widget)
         self.right_side.setObjectName("right_side")
         self.gridLayout = QtWidgets.QGridLayout(self.right_side)
@@ -195,6 +194,30 @@ class ReceptureWindow(QtWidgets.QWidget):
         self.gridLayout.addWidget(take_account_btn, 10, 1, 1, 1)
         self.horizontalLayout_6.addWidget(self.right_side)
         self.verticalLayout_2.addWidget(self.widget)
+
+        self.all_amount_w = QtWidgets.QWidget(parent=self.recepture_tab)
+        self.all_amount_w.setLayoutDirection(QtCore.Qt.LayoutDirection.LeftToRight)
+        self.all_amount_w.setAutoFillBackground(False)
+        self.all_amount_w.setObjectName("all_amount_w")
+        self.horizontalLayout_8 = QtWidgets.QHBoxLayout(self.all_amount_w)
+        self.horizontalLayout_8.setSpacing(9)
+        self.horizontalLayout_8.setObjectName("horizontalLayout_8")
+        self.amount_all_l = QtWidgets.QLabel(parent=self.all_amount_w)
+        self.amount_all_l.setAlignment(
+            QtCore.Qt.AlignmentFlag.AlignRight | QtCore.Qt.AlignmentFlag.AlignTrailing | QtCore.Qt.AlignmentFlag.AlignVCenter)
+        self.amount_all_l.setObjectName("amount_all_l")
+        self.horizontalLayout_8.addWidget(self.amount_all_l)
+        self.amount_all_value = QtWidgets.QLabel(parent=self.all_amount_w)
+        self.amount_all_value.setLayoutDirection(QtCore.Qt.LayoutDirection.LeftToRight)
+        self.amount_all_value.setAlignment(
+            QtCore.Qt.AlignmentFlag.AlignLeading | QtCore.Qt.AlignmentFlag.AlignLeft | QtCore.Qt.AlignmentFlag.AlignVCenter)
+        self.amount_all_value.setObjectName("amount_all_value")
+        self.horizontalLayout_8.addWidget(self.amount_all_value)
+        self.recount_btn = QtWidgets.QToolButton(parent=self.all_amount_w)
+        self.recount_btn.setObjectName("recount_btn")
+        self.horizontalLayout_8.addWidget(self.recount_btn, alignment=QtCore.Qt.AlignmentFlag.AlignLeft)
+        self.verticalLayout_2.addWidget(self.all_amount_w)
+
         self.tabWidget.addTab(self.recepture_tab, "")
 
         self.experimental_tab = QtWidgets.QWidget()
@@ -330,19 +353,51 @@ class ReceptureWindow(QtWidgets.QWidget):
 
         return toolbar
 
+    def show_2k(self, event):
+        check = self.recepture_data.flag_2k
+        if check:
+            self.component_two.hide()
+            self.recepture_data.flag_2k = False
+        else:
+            self.component_two.show()
+            self.recepture_data.flag_2k = True
+
+    def add_row(self, _type, name="", value=""):
+        parent = self.component_one if _type == "one" else self.component_two
+        list_obj = self.list_comp_row_obj if _type == "one" else self.list_comp_2_row_obj
+        loyout = self.component_one_l if _type == "one" else self.component_two_l
+        add_widget = self.buttons if _type == "one" else self.plus_2
+        loyout.removeWidget(add_widget)
+
+        _index = len(list_obj)
+        row = ComponentRow(parent, _index, name=name, amount=value, list_obj=list_obj)
+        loyout.addWidget(row)
+        loyout.addWidget(add_widget)
+        list_obj.append(row)
+        self.reset_row_number(_type)
+
+    def reset_row_number(self, _type: str):
+        list_obj: List[ComponentRow]
+        list_obj = self.list_comp_row_obj if _type == "one" else self.list_comp_2_row_obj
+        number = 1
+        for obj in list_obj:
+            if obj is not None:
+                obj.set_number(number)
+                number += 1
+
+
+
+
+
     def retranslateUi(self, MainWindow):
         _translate = QtCore.QCoreApplication.translate
         MainWindow.setWindowTitle(_translate("MainWindow", "MainWindow"))
 
 
-        self.swap_2.setText(_translate("MainWindow", "..."))
-        self.minus_2.setText(_translate("MainWindow", "..."))
-        self.number_l.setText(_translate("MainWindow", "1"))
-        self.category_icon.setText(_translate("MainWindow", "?"))
-        self.swap.setText(_translate("MainWindow", "..."))
-        self.minus.setText(_translate("MainWindow", "..."))
-        self.btn_2k.setText(_translate("MainWindow", "2k"))
-        self.plus.setText(_translate("MainWindow", "+"))
+        # self.swap_2.setText(_translate("MainWindow", "..."))
+        # self.minus_2.setText(_translate("MainWindow", "..."))
+        # self.btn_2k.setText(_translate("MainWindow", "2k"))
+        # self.plus.setText(_translate("MainWindow", "+"))
         self.amount_all_l.setText(_translate("MainWindow", "Итого:"))
         self.amount_all_value.setText(_translate("MainWindow", "100.00"))
         self.recount_btn.setText(_translate("MainWindow", "..."))
@@ -381,9 +436,115 @@ class ReceptureWindow(QtWidgets.QWidget):
 
 
 class ComponentRow(QtWidgets.QWidget):
-    def __init__(self, parent):
+    def __init__(self, parent, _index, name="aa", amount="", list_obj=None):
         super(ComponentRow, self).__init__(parent=parent)
+        self.db = DB()
+        self.category = ""
+        self.list_obj = list_obj
 
+        self.horizontalLayout_4 = QtWidgets.QHBoxLayout(self)
+        self.horizontalLayout_4.setContentsMargins(0, 0, 0, 0)
+        self.horizontalLayout_4.setSpacing(3)
+
+        self.category_icon = QtWidgets.QLabel(parent=self)
+        self.category_icon.setMaximumSize(QtCore.QSize(16, 16))
+        self.category_icon.setMinimumSize(QtCore.QSize(16, 16))
+        self.category_icon.setTextFormat(QtCore.Qt.TextFormat.PlainText)
+        self.category_icon.setAlignment(QtCore.Qt.AlignmentFlag.AlignCenter)
+        self.category_icon.setScaledContents(True)
+        self.horizontalLayout_4.addWidget(self.category_icon)
+        self.assign_category(name)
+
+        self.number_l = QtWidgets.QLabel(parent=self)
+        self.number_l.setMaximumSize(QtCore.QSize(16, 16))
+        self.number_l.setAlignment(QtCore.Qt.AlignmentFlag.AlignCenter)
+        self.number_l.setMinimumSize(QtCore.QSize(16, 16))
+        self.horizontalLayout_4.addWidget(self.number_l)
+
+        self.name_comp = QtWidgets.QComboBox(parent=self)
+        self.name_comp.setEditable(True)
+        self.name_comp.setEditText(name)
+        self.name_comp.setMinimumSize(QtCore.QSize(250, 0))
+
+        self.horizontalLayout_4.addWidget(self.name_comp)
+        self.amount = QtWidgets.QLineEdit(parent=self)
+        self.amount.setText(amount)
+        self.amount.setMaximumSize(QtCore.QSize(50, 16777215))
+        self.horizontalLayout_4.addWidget(self.amount)
+
+        # self.minus = HoverableButton(self, "minus_2", (10, 10))
+        # self.minus.clicked.connect(self.delete)
+        # self.horizontalLayout_4.addWidget(self.minus)
+
+        self.swap = HoverableButton(self, "swap", (5, 15))
+        menu = QtWidgets.QMenu(self)
+        menu.addAction('Сделать комментарием', self.delete)
+        menu.addAction('Удалить', self.delete)
+
+        self.swap.setMenu(menu)
+        self.horizontalLayout_4.addWidget(self.swap)
+
+        spacerItem5 = QtWidgets.QSpacerItem(40, 10, QtWidgets.QSizePolicy.Policy.Expanding,
+                                            QtWidgets.QSizePolicy.Policy.Minimum)
+
+        self.horizontalLayout_4.addItem(spacerItem5)
+
+    def assign_category(self, name):
+        text = ""
+        tooltip = ""
+        if len(self.db.check_group_reactives("Solvents", name)) == 1:
+            self.category = "Solvents"
+            icon_path = "images/solvent.png"
+            tooltip = "Растворитель"
+        elif len(self.db.check_group_reactives("Pigments", name)) == 1:
+            self.category = "Pigments"
+            icon_path = "images/pigment.png"
+            tooltip = "Пигмент"
+        elif len(self.db.check_group_reactives("Fillers", name)) == 1:
+            self.category = "Fillers"
+            icon_path = "images/filler.png"
+            tooltip = "Наполнитель"
+        elif len(self.db.check_group_reactives("Films", name)) == 1:
+            self.category = "Films"
+            icon_path = "images/film.png"
+            tooltip = "Пленкообразователь"
+        elif len(self.db.check_group_reactives("Additives", name)) == 1:
+            self.category = "Additives"
+            icon_path = "images/additive.png"
+            tooltip = "Функц. добавка"
+        elif len(self.db.check_group_reactives("PigmPast", name)) == 1:
+            self.category = "PigmPast"
+            icon_path = "images/pigm_past.png"
+            tooltip = "Пигментная паста"
+        elif len(self.db.check_group_reactives("Hardener", name)) == 1:
+            self.category = "Hardener"
+            icon_path = "images/hardener.png"
+            tooltip = "Отвердитель"
+        else:
+            self.category = ""
+            icon_path = ""
+            text = "?"
+            tooltip = "Поле пустое или компонент не найден"
+
+        self.category_icon.setText(text) if text != "" else self.category_icon.setPixmap(QtGui.QPixmap(icon_path))
+        self.category_icon.setToolTip(tooltip)
+
+    def set_number(self, number: int):
+        self.number_l.setText(str(number))
+
+    def delete(self, event=None):
+        index = self.list_obj.index(self)
+        self.list_obj[index] = None
+        self.hide()
+        self.reset_row_number()
+        self.name_comp.setFocus()
+
+    def reset_row_number(self):
+        number = 1
+        for obj in self.list_obj:
+            if obj is not None:
+                obj.set_number(number)
+                number += 1
 
 class ReceptureDataModel:
     def __init__(self, project, iteration, name):
@@ -395,8 +556,8 @@ class ReceptureDataModel:
         self.project_params = []
         self.project_params_value = []
         self.password = ""
-        self.component_list = []
-        self.component_list_2 = []
+        self.component_list = [("", "") for i in range(7)]
+        self.component_list_2 =  [("", "") for i in range(3)]
         self.experiment_list = []
         self.notes = ""
 
@@ -483,8 +644,9 @@ class ReceptureDataModel:
         self.hiding_dry = properties[10]
         self.density = properties[11]
 
-        if len(self.component_list_2) > 0:
-            self.flag_2k = True
+        for comp in self.component_list_2:
+            if comp[0] != '' and comp[1] != '':
+                self.flag_2k = True
 
     def collect_data(self):
         pass
