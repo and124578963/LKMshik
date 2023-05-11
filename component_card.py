@@ -3,7 +3,7 @@ import webbrowser
 from PIL import Image, ImageColor
 from PIL.ImageQt import ImageQt
 from PyQt6 import QtCore, QtGui, QtWidgets
-from PyQt6.QtCore import QRegularExpression, Qt
+from PyQt6.QtCore import QRegularExpression
 from PyQt6.QtGui import QColor, QImage, QIcon, QRegularExpressionValidator
 from PyQt6.QtWidgets import QWidget, QGridLayout, QFileDialog, QColorDialog
 
@@ -583,23 +583,24 @@ QComboBox::down-arrow:on { /* shift the arrow when popup is open */
 
 
 class CustomEntry(QtWidgets.QLineEdit):
-    def __init__(self, parent):
+    def __init__(self, parent, padding=True):
         super(CustomEntry, self).__init__(parent=parent)
+        padding = "padding-right:30px;" if padding else ""
         self.setStyleSheet("""
         
-        QLineEdit {
+        QLineEdit {{
           border-bottom: 1px solid #aaa;
            border-right: 1px solid #aaa;
           border-radius: 2px;
           padding: 2px 5px;
-           padding-right:30px;
-        }
-        QLineEdit:focus {
+           {}
+                   }}
+        QLineEdit:focus {{
              border-bottom: 1px solid #209fa6;
              border-right: 1px solid #209fa6;
-        }
-         QLineEdit:hover{
+        }}
+         QLineEdit:hover{{
          
-         }
+         }}
         
-        """)
+        """.format(padding))

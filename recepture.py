@@ -1,12 +1,24 @@
 import copy
+import logging
+from decimal import Decimal
+from functools import reduce
 
 from PyQt6 import QtCore, QtGui, QtWidgets
+from PyQt6.QtCore import Qt, QRegularExpression
+from PyQt6.QtGui import QRegularExpressionValidator
+from PyQt6.QtWidgets import QCompleter
 from sqlitedict import SqliteDict
 
 from common.secrets import Secrets
 from common.ui_elements import HoverableButton, MenuButton
+from component_card import CustomEntry
 from database import DB
-from typing import List
+from typing import List, Tuple
+import xml.etree.ElementTree as ET
+import requests
+from newReactives import InfoWindow, DarkBtn_Ui
+from settings import get_suhoi_type
+
 
 class ReceptureWindow(QtWidgets.QWidget):
     def __init__(self, project_name: str, iter_name: str, name: str):
@@ -27,7 +39,6 @@ class ReceptureWindow(QtWidgets.QWidget):
         toolbar = self.add_toolbar(self)
         self.verticalLayout_3.addWidget(toolbar)
 
-
         self.tabWidget = QtWidgets.QTabWidget(parent=self)
         self.tabWidget.setObjectName("tabWidget")
 
@@ -42,9 +53,16 @@ class ReceptureWindow(QtWidgets.QWidget):
         self.horizontalLayout_6 = QtWidgets.QHBoxLayout(self.widget)
         self.horizontalLayout_6.setObjectName("horizontalLayout_6")
 
+        self.left_side =  QtWidgets.QWidget(parent=self.widget)
+        self.left_side.setMaximumSize(QtCore.QSize(390, 16777215))
+        self.horizontalLayout_6.addWidget(self.left_side)
+        self.left_vertical_lo = QtWidgets.QVBoxLayout(self.left_side)
+        self.left_vertical_lo.setContentsMargins(0,0,0,0)
+        self.left_vertical_lo.setSpacing(0)
+
         self.scrollArea = QtWidgets.QScrollArea(parent=self.widget)
-        self.scrollArea.setMinimumSize(QtCore.QSize(400, 0))
-        self.scrollArea.setMaximumSize(QtCore.QSize(400, 16777215))
+        self.scrollArea.setMinimumSize(QtCore.QSize(390, 0))
+        self.scrollArea.setMaximumSize(QtCore.QSize(390, 16777215))
         self.scrollArea.setWidgetResizable(True)
         self.scrollArea.setObjectName("scrollArea")
         self.widget.setStyleSheet("""
@@ -64,31 +82,6 @@ class ReceptureWindow(QtWidgets.QWidget):
         self.verticalLayout.setContentsMargins(0,0,0,0)
         self.verticalLayout.setSpacing(2)
 
-
-
-
-        # self.row_comment = QtWidgets.QWidget(parent=self.recepture)
-        # self.row_comment.setObjectName("row_comment")
-        # self.horizontalLayout_5 = QtWidgets.QHBoxLayout(self.row_comment)
-        # self.horizontalLayout_5.setContentsMargins(25, 0, 0, 0)
-        # self.horizontalLayout_5.setSpacing(0)
-        # self.horizontalLayout_5.setObjectName("horizontalLayout_5")
-        # self.comment = QtWidgets.QPlainTextEdit(parent=self.row_comment)
-        # sizePolicy = QtWidgets.QSizePolicy(QtWidgets.QSizePolicy.Policy.Minimum, QtWidgets.QSizePolicy.Policy.Minimum)
-        # sizePolicy.setHorizontalStretch(0)
-        # sizePolicy.setVerticalStretch(0)
-        # sizePolicy.setHeightForWidth(self.comment.sizePolicy().hasHeightForWidth())
-        # self.comment.setSizePolicy(sizePolicy)
-        # self.comment.setMaximumSize(QtCore.QSize(350, 40))
-        # self.comment.setObjectName("comment")
-        # self.horizontalLayout_5.addWidget(self.comment)
-        # self.swap_2 = QtWidgets.QToolButton(parent=self.row_comment)
-        # self.swap_2.setObjectName("swap_2")
-        # self.horizontalLayout_5.addWidget(self.swap_2)
-        # self.minus_2 = QtWidgets.QToolButton(parent=self.row_comment)
-        # self.minus_2.setObjectName("minus_2")
-        # self.horizontalLayout_5.addWidget(self.minus_2)
-        # self.verticalLayout.addWidget(self.row_comment)
 
         self.component_one = QtWidgets.QWidget(self.recepture)
         self.component_one.setGeometry(QtCore.QRect(0, 0, 403, 485))
@@ -138,85 +131,177 @@ class ReceptureWindow(QtWidgets.QWidget):
             self.component_two.hide()
 
         self.scrollArea.setWidget(self.recepture)
-        self.horizontalLayout_6.addWidget(self.scrollArea)
+        self.left_vertical_lo.addWidget(self.scrollArea)
 
         self.right_side = QtWidgets.QWidget(parent=self.widget)
-        self.right_side.setObjectName("right_side")
-        self.gridLayout = QtWidgets.QGridLayout(self.right_side)
-        self.gridLayout.setObjectName("gridLayout")
-        self.dict_data_l = QtWidgets.QLabel(parent=self.right_side)
-        self.dict_data_l.setText("Дополнительные функции")
-        self.gridLayout.addWidget(self.dict_data_l, 9, 0, 1, 1)
-        self.count_para_l = QtWidgets.QLabel(parent=self.right_side)
-        self.count_para_l.setObjectName("count_para_l")
-        self.gridLayout.addWidget(self.count_para_l, 0, 0, 1, 1)
+        self.verticalLayout_6 = QtWidgets.QVBoxLayout(self.right_side)
+        self.verticalLayout_6.setSpacing(3)
+        self.verticalLayout_6.setContentsMargins(0,0,0,0)
+        self.right_side.setMaximumSize(350, 999999)
+
+        w, lo = self.create_w_lo(self.right_side, self.verticalLayout_6)
+        self.count_params_l = QtWidgets.QLabel(parent=w)
+        self.count_params_l.setText("Расчетные параметры")
+        font = QtGui.QFont()
+        font.setPointSize(12)
+        self.count_params_l.setFont(font)
+        lo.addWidget(self.count_params_l)
+        self.setting_count = HoverableButton(w, "settings", (16,16))
+        lo.addWidget(self.setting_count, alignment=QtCore.Qt.AlignmentFlag.AlignRight)
+        lo.setContentsMargins(0,0,0,9)
+
+
+        self.price_l = QtWidgets.QLabel(parent=self.right_side)
+        self.price_l.setText("Стоимость:")
+        self.verticalLayout_6.addWidget(self.price_l)
+
+        self.density_l = QtWidgets.QLabel(parent=self.right_side)
+        self.density_l.setText("Плотность:")
+        self.verticalLayout_6.addWidget(self.density_l)
+
+        w, lo = self.create_w_lo(self.right_side, self.verticalLayout_6)
+        self.suhoi_l = QtWidgets.QLabel(parent=w)
+        self.suhoi_l.setText("Масс.д.н.в:")
+        lo.addWidget(self.suhoi_l)
+
+        self.volume_suhoi_l = QtWidgets.QLabel(parent=w)
+        self.volume_suhoi_l.setText("Объем.д.н.в:")
+        lo.addWidget(self.volume_suhoi_l)
+
+
+        self.oil_l = QtWidgets.QLabel(parent=self.right_side)
+        self.oil_l.setText("Маслоемкость 1-го рода:")
+        self.verticalLayout_6.addWidget(self.oil_l)
+
+        self.philum_l = QtWidgets.QLabel(parent=self.right_side)
+        self.philum_l.setText("Филум пигментов:")
+        self.verticalLayout_6.addWidget(self.philum_l)
+
+        self.degree_pigm_l = QtWidgets.QLabel(parent=self.right_side)
+        self.degree_pigm_l.setText("Степень пигментирования:")
+        self.verticalLayout_6.addWidget(self.degree_pigm_l)
+
+        self.const_pigm_l = QtWidgets.QLabel(parent=self.right_side)
+        self.const_pigm_l.setText("Константа наполнения:")
+        self.verticalLayout_6.addWidget(self.const_pigm_l)
+
+        w, lo = self.create_w_lo(self.right_side, self.verticalLayout_6)
+        self.okp_l = QtWidgets.QLabel(parent=w)
+        self.okp_l.setText("ОКП:")
+        lo.addWidget(self.okp_l)
+
+        self.kokp_l = QtWidgets.QLabel(parent=w)
+        self.kokp_l.setText("КОКП:")
+        lo.addWidget(self.kokp_l)
+
+        self.okp_kokp_l = QtWidgets.QLabel(parent=w)
+        self.okp_kokp_l.setText("ОКП/КОКП:")
+        lo.addWidget(self.okp_kokp_l)
+
+        self.hiding_pigm_l = QtWidgets.QLabel(parent=self.right_side)
+        self.hiding_pigm_l.setText("Укрывистость пигментов:")
+        self.verticalLayout_6.addWidget(self.hiding_pigm_l)
+
+        self.hiding_wet_l = QtWidgets.QLabel(parent=self.right_side)
+        self.hiding_wet_l.setText("Укрывистость мокрой пленки:")
+        self.verticalLayout_6.addWidget(self.hiding_wet_l)
+
+        self.hiding_dry_l = QtWidgets.QLabel(parent=self.right_side)
+        self.hiding_dry_l.setText("Укрывистость сухой пленки:")
+        self.verticalLayout_6.addWidget(self.hiding_dry_l)
+
+        w, lo = self.create_w_lo(self.right_side, self.verticalLayout_6)
+        self.count_btn = DarkBtn_Ui(w, "calc")
+        self.count_btn.clicked.connect(self.count_all)
+        lo.addWidget(self.count_btn)
+        lo.setContentsMargins(0,9,0,9)
+
+
+        l = QtWidgets.QLabel(parent=self.right_side)
+        l.setText("Расчет компонентов")
+        self.verticalLayout_6.addWidget(l,alignment=QtCore.Qt.AlignmentFlag.AlignLeft)
+
+        w, lo = self.create_w_lo(self.right_side, self.verticalLayout_6)
+        self.count_additives_btn = QtWidgets.QPushButton(parent=w)
+        self.count_additives_btn.setText("Расчет функц. добавок")
+        lo.addWidget(self.count_additives_btn)
+
+        self.hardener_btn = QtWidgets.QPushButton(parent=w)
+        self.hardener_btn.setText("Расчет отвердителя")
+        lo.addWidget(self.hardener_btn)
+
+
+        w, lo = self.create_w_lo(self.right_side, self.verticalLayout_6)
+        self.recount_maslo_btn = QtWidgets.QPushButton(parent=w)
+        self.recount_maslo_btn.setText("Заменить по маслоемкости")
+        lo.addWidget(self.recount_maslo_btn)
+
+        l = QtWidgets.QLabel(parent=self.right_side)
+        l.setText("Расчет рецептур")
+        self.verticalLayout_6.addWidget(l, alignment=QtCore.Qt.AlignmentFlag.AlignLeft)
+
+        w, lo = self.create_w_lo(self.right_side, self.verticalLayout_6)
+        self.recount_const = QtWidgets.QPushButton(parent=w)
+        self.recount_const.setText("По константе наполнения")
+        lo.addWidget(self.recount_const)
+
+        self.recont_comb = QtWidgets.QPushButton(parent=w)
+        self.recont_comb.setText( "Комбинированный")
+        lo.addWidget(self.recont_comb)
+
+
+        l = QtWidgets.QLabel(parent=self.right_side)
+        l.setText("Дополнительные функции")
+        self.verticalLayout_6.addWidget(l, alignment=QtCore.Qt.AlignmentFlag.AlignLeft)
+
+        w, lo = self.create_w_lo(self.right_side, self.verticalLayout_6)
+        self.philum_btn = QtWidgets.QPushButton(w)
+        self.philum_btn.setText("Филумы пигментов")
+        lo.addWidget(self.philum_btn)
+
+
         spacerItem2 = QtWidgets.QSpacerItem(20, 40, QtWidgets.QSizePolicy.Policy.Minimum,
                                             QtWidgets.QSizePolicy.Policy.Expanding)
-        self.gridLayout.addItem(spacerItem2, 11, 0, 1, 1)
-        self.setting_count = QtWidgets.QPushButton(parent=self.right_side)
-        self.setting_count.setObjectName("setting_count")
-        self.gridLayout.addWidget(self.setting_count, 0, 1, 1, 1)
-        self.recount_maslo_btn = QtWidgets.QPushButton(parent=self.right_side)
-        self.recount_maslo_btn.setObjectName("recount_maslo_btn")
-        self.gridLayout.addWidget(self.recount_maslo_btn, 6, 0, 1, 1)
-        self.count_additives_btn = QtWidgets.QPushButton(parent=self.right_side)
-        self.count_additives_btn.setObjectName("count_additives_btn")
-        self.gridLayout.addWidget(self.count_additives_btn, 5, 0, 1, 1)
-        self.count_btn = QtWidgets.QPushButton(parent=self.right_side)
-        self.count_btn.setObjectName("count_btn")
-        self.gridLayout.addWidget(self.count_btn, 3, 0, 1, 2)
-        self.label_8 = QtWidgets.QLabel(parent=self.right_side)
-        self.label_8.setObjectName("label_8")
-        self.gridLayout.addWidget(self.label_8, 1, 1, 1, 1)
-        self.recount_const = QtWidgets.QPushButton(parent=self.right_side)
-        self.recount_const.setObjectName("recount_const")
-        self.gridLayout.addWidget(self.recount_const, 8, 0, 1, 1)
-        self.label_7 = QtWidgets.QLabel(parent=self.right_side)
-        self.label_7.setObjectName("label_7")
-        self.gridLayout.addWidget(self.label_7, 1, 0, 1, 1)
-        self.count_component_l = QtWidgets.QLabel(parent=self.right_side)
-        self.count_component_l.setObjectName("count_component_l")
-        self.gridLayout.addWidget(self.count_component_l, 4, 0, 1, 1)
-        self.count_recepture_l = QtWidgets.QLabel(parent=self.right_side)
-        self.count_recepture_l.setObjectName("count_recepture_l")
-        self.gridLayout.addWidget(self.count_recepture_l, 7, 0, 1, 1)
-        self.hardener_btn = QtWidgets.QPushButton(parent=self.right_side)
-        self.hardener_btn.setObjectName("hardener_btn")
-        self.gridLayout.addWidget(self.hardener_btn, 5, 1, 1, 1)
-        self.recont_comb = QtWidgets.QPushButton(parent=self.right_side)
-        self.recont_comb.setObjectName("recont_comb")
-        self.gridLayout.addWidget(self.recont_comb, 8, 1, 1, 1)
-        self.philum_btn = QtWidgets.QPushButton(parent=self.right_side)
-        self.philum_btn.setObjectName("philum_btn")
-        self.gridLayout.addWidget(self.philum_btn, 10, 0, 1, 1)
-        take_account_btn = QtWidgets.QPushButton(parent=self.right_side)
-        take_account_btn.setText("Списать компоненты")
-        self.gridLayout.addWidget(take_account_btn, 10, 1, 1, 1)
+        self.verticalLayout_6.addItem(spacerItem2)
         self.horizontalLayout_6.addWidget(self.right_side)
         self.verticalLayout_2.addWidget(self.widget)
 
-        self.all_amount_w = QtWidgets.QWidget(parent=self.recepture_tab)
-        self.all_amount_w.setLayoutDirection(QtCore.Qt.LayoutDirection.LeftToRight)
-        self.all_amount_w.setAutoFillBackground(False)
-        self.all_amount_w.setObjectName("all_amount_w")
+        self.all_amount_w = QtWidgets.QWidget(parent=self.left_side)
+        space = QtWidgets.QSpacerItem(20, 40, QtWidgets.QSizePolicy.Policy.Expanding,
+                                            QtWidgets.QSizePolicy.Policy.Minimum)
+
         self.horizontalLayout_8 = QtWidgets.QHBoxLayout(self.all_amount_w)
+        self.horizontalLayout_8.setContentsMargins(0,9,30,9)
         self.horizontalLayout_8.setSpacing(9)
-        self.horizontalLayout_8.setObjectName("horizontalLayout_8")
+        self.horizontalLayout_8.addItem(space)
         self.amount_all_l = QtWidgets.QLabel(parent=self.all_amount_w)
-        self.amount_all_l.setAlignment(
-            QtCore.Qt.AlignmentFlag.AlignRight | QtCore.Qt.AlignmentFlag.AlignTrailing | QtCore.Qt.AlignmentFlag.AlignVCenter)
-        self.amount_all_l.setObjectName("amount_all_l")
+        self.amount_all_l.setText( "Итого:")
         self.horizontalLayout_8.addWidget(self.amount_all_l)
         self.amount_all_value = QtWidgets.QLabel(parent=self.all_amount_w)
-        self.amount_all_value.setLayoutDirection(QtCore.Qt.LayoutDirection.LeftToRight)
-        self.amount_all_value.setAlignment(
-            QtCore.Qt.AlignmentFlag.AlignLeading | QtCore.Qt.AlignmentFlag.AlignLeft | QtCore.Qt.AlignmentFlag.AlignVCenter)
-        self.amount_all_value.setObjectName("amount_all_value")
         self.horizontalLayout_8.addWidget(self.amount_all_value)
-        self.recount_btn = QtWidgets.QToolButton(parent=self.all_amount_w)
-        self.recount_btn.setObjectName("recount_btn")
-        self.horizontalLayout_8.addWidget(self.recount_btn, alignment=QtCore.Qt.AlignmentFlag.AlignLeft)
-        self.verticalLayout_2.addWidget(self.all_amount_w)
+        self.recount_btn = HoverableButton(self.all_amount_w, "menu", (16,16))
+        menu = QtWidgets.QMenu(self)
+        menu.setStyleSheet(
+            """
+            QMenu
+            {
+                font: 12pt;
+                background-color: #eee;
+            }
+            QMenu::item:selected
+            {
+                background-color: #209fa6
+            }
+            """
+        )
+        menu.addAction('Списать компоненты', lambda :print(1))
+        menu.addAction('Пересчитать массу', lambda :print(1))
+        menu.addAction('Довести растворителем', lambda :print(1))
+
+        self.recount_btn.setMenu(menu)
+
+        self.horizontalLayout_8.addWidget(self.recount_btn)
+        self.left_vertical_lo.addWidget(self.all_amount_w)
 
         self.tabWidget.addTab(self.recepture_tab, "")
 
@@ -317,6 +402,18 @@ class ReceptureWindow(QtWidgets.QWidget):
         self.retranslateUi(self)
         self.tabWidget.setCurrentIndex(0)
 
+        self.count_mass()
+
+    def create_w_lo(self, parent_w: QtWidgets.QWidget, parent_lo: QtWidgets.QBoxLayout) -> \
+            Tuple[QtWidgets.QWidget, QtWidgets.QBoxLayout]:
+        w = QtWidgets.QWidget(parent=parent_w)
+        lo = QtWidgets.QHBoxLayout(w)
+        lo.setSpacing(5)
+        lo.setContentsMargins(0,0,0,0)
+        parent_lo.addWidget(w)
+        return w, lo
+
+
     def add_toolbar(self, parent: QtWidgets) -> QtWidgets.QFrame:
         toolbar = QtWidgets.QFrame(parent=parent)
         toolbar.setObjectName("toolbarBg")
@@ -361,6 +458,8 @@ class ReceptureWindow(QtWidgets.QWidget):
         else:
             self.component_two.show()
             self.recepture_data.flag_2k = True
+        self.btn_2k.set_pressed()
+        self.count_mass()
 
     def add_row(self, _type, name="", value=""):
         parent = self.component_one if _type == "one" else self.component_two
@@ -370,7 +469,7 @@ class ReceptureWindow(QtWidgets.QWidget):
         loyout.removeWidget(add_widget)
 
         _index = len(list_obj)
-        row = ComponentRow(parent, _index, name=name, amount=value, list_obj=list_obj)
+        row = ComponentRow(parent, _index, name=name, amount=value, list_obj=list_obj, callback_mass=self.count_mass)
         loyout.addWidget(row)
         loyout.addWidget(add_widget)
         list_obj.append(row)
@@ -385,36 +484,10 @@ class ReceptureWindow(QtWidgets.QWidget):
                 obj.set_number(number)
                 number += 1
 
-
-
-
-
     def retranslateUi(self, MainWindow):
         _translate = QtCore.QCoreApplication.translate
         MainWindow.setWindowTitle(_translate("MainWindow", "MainWindow"))
 
-
-        # self.swap_2.setText(_translate("MainWindow", "..."))
-        # self.minus_2.setText(_translate("MainWindow", "..."))
-        # self.btn_2k.setText(_translate("MainWindow", "2k"))
-        # self.plus.setText(_translate("MainWindow", "+"))
-        self.amount_all_l.setText(_translate("MainWindow", "Итого:"))
-        self.amount_all_value.setText(_translate("MainWindow", "100.00"))
-        self.recount_btn.setText(_translate("MainWindow", "..."))
-
-        self.count_para_l.setText(_translate("MainWindow", "Расчетные параметры"))
-        self.setting_count.setText(_translate("MainWindow", "Настройки"))
-        self.recount_maslo_btn.setText(_translate("MainWindow", "Заменить по маслоемкости"))
-        self.count_additives_btn.setText(_translate("MainWindow", "Расчет функц. добавок"))
-        self.count_btn.setText(_translate("MainWindow", "Рассчитать"))
-        self.label_8.setText(_translate("MainWindow", "TextLabel"))
-        self.recount_const.setText(_translate("MainWindow", "По константе наполнения"))
-        self.label_7.setText(_translate("MainWindow", "TextLabel"))
-        self.count_component_l.setText(_translate("MainWindow", "Расчет компонентов"))
-        self.count_recepture_l.setText(_translate("MainWindow", "Расчет рецептур"))
-        self.hardener_btn.setText(_translate("MainWindow", "Расчет отвердителя"))
-        self.recont_comb.setText(_translate("MainWindow", "Комбинированный"))
-        self.philum_btn.setText(_translate("MainWindow", "Филумы пигментов"))
         self.tabWidget.setTabText(self.tabWidget.indexOf(self.recepture_tab), _translate("MainWindow", "Рецептура"))
         self.name_l.setText(_translate("MainWindow", "Название"))
         self.label_3.setText(_translate("MainWindow", "Требуемое \n"
@@ -434,14 +507,78 @@ class ReceptureWindow(QtWidgets.QWidget):
                                   _translate("MainWindow", "Эксперимент"))
         self.tabWidget.setTabText(self.tabWidget.indexOf(self.description_tab), _translate("MainWindow", "Заметки"))
 
+    def collect_rows_data(self):
+        list_comp_1 = [i.get_data() for i in self.list_comp_row_obj]
+        list_comp_category_1 = [i.get_category() for i in self.list_comp_row_obj]
+        list_comp_2 = [i.get_data() for i in self.list_comp_2_row_obj]
+        list_comp_category_2 = [i.get_category() for i in self.list_comp_2_row_obj]
+        self.recepture_data.component_list = list_comp_1
+        self.recepture_data.component_list_2 = list_comp_2
+        self.recepture_data.category_list = list_comp_category_1
+        self.recepture_data.category_list_2 = list_comp_category_2
+
+    def count_mass(self, collected=False):
+        print(collected)
+        if not collected:
+            self.collect_rows_data()
+        mass = self.recepture_data.count_mass(all=True)
+        mass = self.normalize_number(mass)
+        self.amount_all_value.setText(mass)
+
+    def count_all(self):
+        self.collect_rows_data()
+        self.count_mass(collected=True)
+        self.recepture_data.all_count()
+        data = self.recepture_data
+        list_update_lable_value = (
+            (self.price_l, data.price, "руб/кг"),
+            (self.oil_l, data.oil, "г/100 г"),
+            (self.suhoi_l, data.suhoi, "%"),
+            (self.volume_suhoi_l, data.volume_suhoi, "%"),
+            (self.okp_l, data.okp, "%"),
+            (self.kokp_l, data.kokp, "%"),
+            (self.okp_kokp_l, data.okp_kokp, "%"),
+            (self.hiding_pigm_l, data.hiding_pigm, "г/м²"),
+            (self.hiding_wet_l, data.hiding_wet, "г/м²"),
+            (self.hiding_dry_l, data.hiding_dry, "г/м²"),
+            (self.philum_l, data.philum, ""),
+            (self.density_l, data.get_density(), "г/см³"),
+            (self.degree_pigm_l, data.degree_pigm, ""),
+            (self.const_pigm_l, data.const_pigm, ""),
+        )
+        for lable, value, size in list_update_lable_value:
+            self.update_lable_param(lable, value, size)
+
+
+    def normalize_number(self, number: Decimal) -> str:
+        normalized = number.normalize()
+        sign, digit, exponent = normalized.as_tuple()
+        normalized = normalized if exponent <= 0 else normalized.quantize(1)
+        normalized = normalized.quantize(Decimal("1.00"), "ROUND_HALF_EVEN")
+        normalized = str(normalized).replace(".", ",")
+        return normalized
+
+    def update_lable_param(self, lable: QtWidgets.QLabel, new_value: Decimal, size: str):
+        text = lable.text()
+        value = self.normalize_number(new_value)
+        _index = text.index(":") + 1
+        text =  f"{text[:_index]} {value} {size}"
+        lable.setText(text)
+
+
 
 class ComponentRow(QtWidgets.QWidget):
-    def __init__(self, parent, _index, name="aa", amount="", list_obj=None):
+    def __init__(self, parent, _index, name="", amount="", list_obj=None, callback_mass=None):
         super(ComponentRow, self).__init__(parent=parent)
+        self.callback_mass = callback_mass
         self.db = DB()
         self.category = ""
         self.list_obj = list_obj
+        self.flag_comment = False
+        self.component_list = []
+        self.event_list = []
 
+        self.setCursor(QtGui.QCursor(QtCore.Qt.CursorShape.SizeAllCursor))
         self.horizontalLayout_4 = QtWidgets.QHBoxLayout(self)
         self.horizontalLayout_4.setContentsMargins(0, 0, 0, 0)
         self.horizontalLayout_4.setSpacing(3)
@@ -461,24 +598,57 @@ class ComponentRow(QtWidgets.QWidget):
         self.number_l.setMinimumSize(QtCore.QSize(16, 16))
         self.horizontalLayout_4.addWidget(self.number_l)
 
-        self.name_comp = QtWidgets.QComboBox(parent=self)
-        self.name_comp.setEditable(True)
-        self.name_comp.setEditText(name)
+        list_all_names = self.db.search("%%")
+        self.name_comp = SearchCombobox(self, list_all_names)
+        self.name_comp.setText(name)
         self.name_comp.setMinimumSize(QtCore.QSize(250, 0))
+        self.name_comp.textChanged.connect(self.name_changed)
+
 
         self.horizontalLayout_4.addWidget(self.name_comp)
-        self.amount = QtWidgets.QLineEdit(parent=self)
+        self.amount = CustomEntry(self, padding=False)
         self.amount.setText(amount)
         self.amount.setMaximumSize(QtCore.QSize(50, 16777215))
+        self.amount.setMinimumSize(QtCore.QSize(50, 16777215))
+        self.amount.textChanged.connect(lambda event: callback_mass())
+        reg_ex = QRegularExpression(r"[0-9]*[\,,.]{1}[0-9]*")
+        validator = QRegularExpressionValidator(reg_ex)
+        self.amount.setValidator(validator)
         self.horizontalLayout_4.addWidget(self.amount)
 
-        # self.minus = HoverableButton(self, "minus_2", (10, 10))
-        # self.minus.clicked.connect(self.delete)
-        # self.horizontalLayout_4.addWidget(self.minus)
+        self.comment_spacer = QtWidgets.QSpacerItem(40, 10, QtWidgets.QSizePolicy.Policy.Fixed,
+                                            QtWidgets.QSizePolicy.Policy.Minimum)
+        self.comment_spacer.changeSize(0, 0)
+        self.horizontalLayout_4.addItem(self.comment_spacer)
+        self.comment = QtWidgets.QPlainTextEdit(parent=self)
+        sizePolicy = QtWidgets.QSizePolicy(QtWidgets.QSizePolicy.Policy.Minimum, QtWidgets.QSizePolicy.Policy.Minimum)
+        sizePolicy.setHorizontalStretch(0)
+        sizePolicy.setVerticalStretch(0)
+        sizePolicy.setHeightForWidth(self.comment.sizePolicy().hasHeightForWidth())
+        self.comment.setSizePolicy(sizePolicy)
+        # self.comment.setContentsMargins(32,0,0,0)
+        self.comment.setMinimumSize(QtCore.QSize(303, 40))
+        self.horizontalLayout_4.addWidget(self.comment)
+        self.comment.hide()
 
-        self.swap = HoverableButton(self, "swap", (5, 15))
+        self.swap = MenuButton(self, "swap", (20, 20))
+        self.swap.setMaximumSize(QtCore.QSize(20, 20))
+
         menu = QtWidgets.QMenu(self)
-        menu.addAction('Сделать комментарием', self.delete)
+        menu.setStyleSheet(
+            """
+            QMenu
+            {
+                font: 12pt;
+                background-color: #eee;
+            }
+            QMenu::item:selected
+            {
+                background-color: #209fa6
+            }
+            """
+            )
+        menu.addAction('Сделать комментарием', self.change_state)
         menu.addAction('Удалить', self.delete)
 
         self.swap.setMenu(menu)
@@ -488,6 +658,54 @@ class ComponentRow(QtWidgets.QWidget):
                                             QtWidgets.QSizePolicy.Policy.Minimum)
 
         self.horizontalLayout_4.addItem(spacerItem5)
+
+    def change_state(self):
+        if self.flag_comment:
+            self.flag_comment = False
+            self.category_icon.show()
+            self.number_l.show()
+            self.name_comp.show()
+            self.amount.show()
+
+            self.comment.hide()
+            self.comment_spacer.changeSize(0, 0)
+            menu = QtWidgets.QMenu(self)
+            menu.addAction('Сделать комментарием', self.change_state)
+            menu.addAction('Удалить', self.delete)
+
+            self.swap.setMenu(menu)
+            self.reset_row_number()
+
+        else:
+            self.flag_comment = True
+            self.category_icon.hide()
+            self.number_l.hide()
+            self.name_comp.hide()
+            self.amount.hide()
+
+            self.comment.show()
+            self.comment_spacer.changeSize(38, 10)
+            menu = QtWidgets.QMenu(self)
+            menu.addAction('Сделать компонентом', self.change_state)
+            menu.addAction('Удалить', self.delete)
+
+            self.swap.setMenu(menu)
+            self.reset_row_number()
+        self.callback_mass()
+
+        menu.setStyleSheet(
+            """
+            QMenu
+            {
+                font: 10pt;
+                background-color: #eee;
+            }
+            QMenu::item:selected
+            {
+                background-color: #209fa6
+            }
+            """
+            )
 
     def assign_category(self, name):
         text = ""
@@ -539,12 +757,28 @@ class ComponentRow(QtWidgets.QWidget):
         self.reset_row_number()
         self.name_comp.setFocus()
 
+    def name_changed(self, event):
+        self.assign_category(event)
+
     def reset_row_number(self):
+        self.list_obj: List[ComponentRow]
         number = 1
         for obj in self.list_obj:
             if obj is not None:
-                obj.set_number(number)
-                number += 1
+                if not obj.flag_comment:
+                    obj.set_number(number)
+                    number += 1
+
+    def get_data(self):
+        #если 1 элемент, то комментарий, если 2, то компонент
+        if self.flag_comment:
+            return self.comment.toPlainText()
+        else:
+            return self.name_comp.text(),  self.amount.text()
+
+    def get_category(self):
+        return self.category
+
 
 class ReceptureDataModel:
     def __init__(self, project, iteration, name):
@@ -556,8 +790,10 @@ class ReceptureDataModel:
         self.project_params = []
         self.project_params_value = []
         self.password = ""
-        self.component_list = [("", "") for i in range(7)]
-        self.component_list_2 =  [("", "") for i in range(3)]
+        self.component_list = [("", "") for _ in range(7)]
+        self.category_list = ["" for _ in range(7)]
+        self.component_list_2 = [("", "") for _ in range(3)]
+        self.category_list_2 = ["" for _ in range(7)]
         self.experiment_list = []
         self.notes = ""
 
@@ -565,18 +801,28 @@ class ReceptureDataModel:
         self.price_K = 1.0
         self.accurate_density = 0.0
 
-        self.price = 0
-        self.mass_unflyable = 0
-        self.sp = 0
-        self.okp = 0
-        self.oil = 0
-        self.kn = 0
-        self.hiding_pigm = 0
-        self.hiding_wet = 0
-        self.philum = 0
-        self.kokp = 0
-        self.hiding_dry = 0
-        self.density = 0
+        self.mass = Decimal(0)
+        self.price = Decimal(0)
+        self.suhoi = Decimal(0)
+        self.degree_pigm = Decimal(0)
+        self.oil = Decimal(0)
+        self.const_pigm = Decimal(0)
+        self.hiding_pigm = Decimal(0)
+        self.hiding_wet = Decimal(0)
+        self.hiding_dry = Decimal(0)
+        self.philum = Decimal(0)
+        self.okp = Decimal(0)
+        self.kokp = Decimal(0)
+        self.okp_kokp = Decimal(0)
+        self.hiding_dry = Decimal(0)
+        self.density = Decimal(0)
+        self.volume_suhoi = Decimal(0)
+
+    def get_density(self):
+        if self.accurate_density > 0.0:
+            return Decimal(self.accurate_density)
+        else:
+            return self.density
 
     def map_encrypt(self, str):
         global password
@@ -709,3 +955,613 @@ class ReceptureDataModel:
                                  dict_params,
                                  ]
             mydict.commit()
+
+    def count_mass(self, all=False) -> Decimal:
+        components, _ = self.get_actual_data_for_count(all=all)
+        components = list(map(lambda x: Decimal(x[1].replace(",", ".")), components))
+        summ = reduce(lambda x, y: x + y, components)
+        self.mass = summ
+        return self.mass
+
+    def get_actual_data_for_count(self, all=False) -> Tuple[tuple, str]:
+        # retrun [((name, value), category), ...]
+        # retrun [((comment,), category), ...]
+
+        if self.flag_2k:
+            components = self.component_list + self.component_list_2
+            categories = self.category_list + self.category_list_2
+        else:
+            components = self.component_list
+            categories = self.category_list
+
+        data = list(zip(components, categories))
+        data = list(filter(lambda foo: len(foo[0]) > 1, data))
+        if all:
+            data = list(filter(lambda foo: len(foo[0][1]) > 0, data))
+        else:
+            data = list(filter(lambda foo: foo[1] != "", data))
+
+        components, categories = list(zip(*data))
+        return components, categories
+
+    def create_category_objs(self):
+        components, categories = self.get_actual_data_for_count()
+
+        self.list_of_solvent_objects = []
+        self.list_of_pigment_objects = []
+        self.list_of_filler_objects = []
+        self.list_of_film_objects = []
+        self.list_of_additive_objects = []
+        self.list_of_pigmpast_objects = []
+        self.list_of_hardener_objects = []
+
+        for (name, mass), cat in zip(components, categories):
+            if cat == "Solvents":
+                self.list_of_solvent_objects.append(Solvents(name, mass))
+            elif cat == "Pigments":
+                self.list_of_pigment_objects.append(Pigments(name, mass))
+            elif cat == "Fillers":
+                self.list_of_filler_objects.append(Fillers(name, mass))
+            elif cat == "Films":
+                self.list_of_film_objects.append(Films(name, mass))
+            elif cat == "Additives":
+                self.list_of_additive_objects.append(Additives(name, mass))
+            elif cat == "PigmPast":
+                self.list_of_pigmpast_objects.append(Pigmpasts(name, mass))
+            elif cat == "Hardener":
+                self.list_of_hardener_objects.append(Hardeners(name, mass))
+            else:
+                pass
+
+    def all_count(self):
+        info_text = ""
+        self.count_mass()
+        self.create_category_objs()
+
+        list_count_funcs = [(self.count_price, "Ошибка в расчете цены. Переведите валюту в Руб."),
+                            (self.all_mass_for_suhoi_f, "Ошибка в расчете массы"),
+                            (self.all_suhoi_in_objects, "Ошибка при расчете м.д.н.в."),
+                            (lambda: self.all_suhoi_in_objects(for_volume=True), "Ошибка при расчете м.д.н.в."),
+                            (self.all_density_in_objects, "Ошибка в расчете плотности"),
+                            (self.all_degree_pigm_in_objects, "Ошибка в расчете степени пигм."),
+                            (self.all_okp_in_objects, "Ошибка в расчете ОКП"),
+                            (self.all_oil_in_objects, "Ошибка в расчете маслоемкости"),
+                            (self.all_const_pigm_in_objects, "Ошибка в расчете кН"),
+                            (self.all_hiding_in_objects, "Ошибка в расчете укрывистости"),
+                            (self.filum_in_objects, "Ошибка в расчете филума"),
+                            (self.all_kokp_maslo_in_objects, "Ошибка в расчете КОКП"),
+                            (self.all_volume_suhoi_in_objects, 'Ошибка в расчете об. доли нелетучих в-в'),
+                            ]
+
+
+        for count_func, error_text in list_count_funcs:
+            try:
+                count_func()
+            except Exception as e:
+                # logging.error(e, exc_info=True)
+                info_text = info_text + error_text + "\n"
+
+                raise e
+
+        if info_text != "":
+            info_text = 'ОШИБКА ПРИ РАСЧЕТЕ! \nПроверьте расчетные значения используемых ' \
+                        '\nкомпонентов в Моя лаборатория.\n' + info_text
+            InfoWindow(info_text).exec()
+
+    def count_price(self):
+        all_mass = self.mass
+        all_price = Decimal(0)
+
+        for i in self.list_of_solvent_objects:
+            all_price += (i.mass * i.price) / all_mass
+        for i in self.list_of_pigment_objects:
+            all_price += (i.mass * i.price) / all_mass
+        for i in self.list_of_filler_objects:
+            all_price += (i.mass * i.price) / all_mass
+        for i in self.list_of_film_objects:
+            all_price += (i.mass * i.price) / all_mass
+        for i in self.list_of_additive_objects:
+            all_price += (i.mass * i.price) / all_mass
+        for i in self.list_of_pigmpast_objects:
+            all_price += (i.mass * i.price) / all_mass
+        for i in self.list_of_hardener_objects:
+            all_price += (i.mass * i.price) / all_mass
+        all_price *= Decimal(self.price_K)
+
+        self.price = all_price
+
+    def all_mass_for_suhoi_f(self):
+        all_mass = Decimal(0)
+        suhoi_check = get_suhoi_type()
+
+        for i in self.list_of_solvent_objects:
+            i = i.mass
+            all_mass += i
+        for i in self.list_of_pigment_objects:
+            i = i.mass
+            all_mass += i
+        for i in self.list_of_filler_objects:
+            i = i.mass
+            all_mass += i
+        for i in self.list_of_film_objects:
+            i = i.mass
+            all_mass += i
+        for i in self.list_of_pigmpast_objects:
+            i = i.mass
+            all_mass += i
+
+        if suhoi_check == 1:
+            for i in self.list_of_additive_objects:
+                all_mass += i.mass
+        else:
+            for i in self.list_of_additive_objects:
+                if i.type.lower() == 'пластификатор':
+                    all_mass += i.mass
+        if suhoi_check == 1 or suhoi_check == 2:
+            for i in self.list_of_hardener_objects:
+                all_mass += i.mass
+
+        self.all_mass_for_suhoi = all_mass
+
+    def all_suhoi_in_objects(self, for_volume=False):
+        if for_volume:
+            all_mass = self.mass
+        else:
+            all_mass = self.all_mass_for_suhoi
+
+        all_suhoi = Decimal(0)
+        if for_volume:
+            suhoi_check = 1  # учитывать всё
+        else:
+            suhoi_check = get_suhoi_type()
+
+        for i in self.list_of_solvent_objects:
+            all_suhoi += (i.mass * i.suhoi) / all_mass
+
+        for i in self.list_of_pigment_objects:
+            all_suhoi += i.mass / all_mass
+
+        for i in self.list_of_filler_objects:
+            all_suhoi += i.mass / all_mass
+
+        for i in self.list_of_film_objects:
+            all_suhoi += (i.mass * i.suhoi) / all_mass
+
+        for i in self.list_of_additive_objects:
+            if suhoi_check == 1:
+                all_suhoi += (i.mass * i.suhoi) / all_mass
+            if suhoi_check == 2 or suhoi_check == 3:
+                if i.type.lower() == 'пластификатор':
+                    all_suhoi += (i.mass * i.suhoi) / all_mass
+
+        for i in self.list_of_pigmpast_objects:
+            all_suhoi += (i.mass * i.suhoi) / all_mass
+
+        if suhoi_check == 1 or suhoi_check == 2:
+            for i in self.list_of_hardener_objects:
+                all_suhoi += (i.mass * i.suhoi) / all_mass
+
+        if not for_volume:
+            all_suhoi = all_suhoi * 100
+            # all_suhoi = self.normalize_number(all_suhoi)
+            self.suhoi = all_suhoi
+        else:
+            self.all_suhoi_for_volume = all_suhoi
+
+    def all_density_in_objects(self):
+        all_mass = self.mass
+        density = Decimal(0)
+        for i in self.list_of_solvent_objects:
+            i = i.mass * i.density / all_mass
+            density += i
+        for i in self.list_of_pigment_objects:
+            i = i.mass * i.density / all_mass
+            density += i
+        for i in self.list_of_filler_objects:
+            i = i.mass * i.density / all_mass
+            density += i
+        for i in self.list_of_film_objects:
+            i = i.mass * i.density / all_mass
+            density += i
+        for i in self.list_of_pigmpast_objects:
+            i = i.mass * i.density / all_mass
+            density += i
+        for i in self.list_of_additive_objects:
+            i = i.mass * i.density / all_mass
+            density += i
+        for i in self.list_of_hardener_objects:
+            i = i.mass * i.density / all_mass
+            density += i
+
+        self.density = density
+
+    def all_volume_suhoi_in_objects(self):
+        suhoi = self.all_suhoi_for_volume
+        if self.accurate_density > 0.0:
+            lkm_volume = Decimal(100) / Decimal(self.accurate_density)
+        else:
+            if self.density > 0:
+                lkm_volume = Decimal(100) / Decimal(self.density)
+            else:
+                lkm_volume = 0
+        # print('лкм объем:'+str(lkm_volume))
+
+        all_solvent_mass = Decimal(0)
+        list_same = self.list_of_film_objects + self.list_of_hardener_objects + \
+                    self.list_of_pigmpast_objects + self.list_of_solvent_objects
+        for i in list_same:
+            all_solvent_mass += i.mass * (Decimal(1.0) - i.suhoi)
+
+        for i in self.list_of_additive_objects:
+            if i.density_solvent > 0:
+                all_solvent_mass += i.mass * (Decimal(1.0) - i.suhoi)
+
+        # print('масса растворителя:' + str(all_solvent_mass))
+
+        density_solvent = Decimal(0)
+        for i in list_same:
+            i = i.mass * (Decimal(1.0) - i.suhoi) * i.density_solvent / all_solvent_mass
+            density_solvent += i
+
+        for i in self.list_of_additive_objects:
+            if i.density_solvent > 0:
+                i = i.mass * (Decimal(1.0) - i.suhoi) * i.density_solvent / all_solvent_mass
+                density_solvent += i
+        # print('плотность растворителя:' + str(density_solvent))
+
+        try:
+            solvent_volume = (Decimal(1.0) - suhoi) * 100 / density_solvent
+            # print('объем растворителя:' + str(solvent_volume))
+            volume_suhoi = (lkm_volume - solvent_volume) * 100 / lkm_volume
+
+        except Exception as e:
+            logging.error(e, exc_info=True)
+
+            volume_suhoi = Decimal(0)
+
+        self.volume_suhoi = volume_suhoi
+
+    def all_degree_pigm_in_objects(self):
+        pigm = Decimal(0)
+        film = Decimal(0)
+        for i in self.list_of_pigment_objects:
+            pigm += i.mass
+        for i in self.list_of_filler_objects:
+            pigm += i.mass
+        for i in self.list_of_pigmpast_objects:
+            pigm += (i.mass * i.suhoi_pigm)
+
+        for i in self.list_of_film_objects:
+            film += (i.mass * i.suhoi)
+        for i in self.list_of_hardener_objects:
+            film += (i.mass_for_params * i.suhoi)
+        for i in self.list_of_pigmpast_objects:
+            film += (i.mass * i.suhoi_film)
+        for i in self.list_of_additive_objects:
+            if i.type.lower() == 'пластификатор':
+                film += (i.mass * i.suhoi)
+
+        try:
+            degree_pigm = Decimal(pigm / film).quantize(Decimal("1.00"), "ROUND_HALF_EVEN")
+        except Exception as e:
+            logging.error(e, exc_info=True)
+            degree_pigm = Decimal(0)
+
+        self.degree_pigm = degree_pigm
+
+    def all_okp_in_objects(self):
+
+        filler_and_pigm_volume = Decimal(0)
+        film_volume = Decimal(0)
+
+        for i in self.list_of_pigment_objects:
+            filler_and_pigm_volume += (
+                    (i.mass) / (i.density))
+        for i in self.list_of_filler_objects:
+            filler_and_pigm_volume += (
+                    (i.mass) / (i.density))
+        for i in self.list_of_pigmpast_objects:
+            filler_and_pigm_volume += (
+                    (i.mass * i.suhoi_pigm) / (
+                i.density_pigm))
+
+        for i in self.list_of_film_objects:
+            film_volume += ((i.mass * i.suhoi) / (
+                i.density_dry))
+        for i in self.list_of_hardener_objects:
+            film_volume += ((i.mass_for_params * i.suhoi) / (
+                i.density_dry))
+        for i in self.list_of_pigmpast_objects:
+            film_volume += (
+                    i.mass * i.suhoi_film /
+                    i.density_dry)
+
+        for i in self.list_of_additive_objects:
+            if i.type.lower() == 'пластификатор':
+                film_volume += ((i.mass * i.suhoi) / (
+                    i.density))
+
+        try:
+            okp = (filler_and_pigm_volume * 100) / (filler_and_pigm_volume + film_volume)
+        except Exception as e:
+            logging.error(e, exc_info=True)
+            okp = Decimal(0)
+
+        self.okp = okp
+
+    def all_oil_in_objects(self):
+        all_mass = 0
+        all_maslo = 0
+        for i in self.list_of_pigment_objects:
+            i = i.mass
+            all_mass += i
+        for i in self.list_of_filler_objects:
+            i = i.mass
+            all_mass += i
+        for i in self.list_of_pigmpast_objects:
+            i = i.mass * i.suhoi_pigm
+            all_mass += i
+
+        for i in self.list_of_pigment_objects:
+            all_maslo += (i.mass * i.maslo) / all_mass
+
+        for i in self.list_of_filler_objects:
+            all_maslo += (i.mass * i.maslo) / all_mass
+
+        for i in self.list_of_pigmpast_objects:
+            all_maslo += (i.mass * i.suhoi_pigm
+                          * i.maslo) / all_mass
+
+        self.oil = all_maslo
+
+    def all_const_pigm_in_objects(self):
+        all_maslo = self.oil
+        degree_pigm = self.degree_pigm
+        const_pigm = all_maslo * degree_pigm
+        self.const_pigm = const_pigm
+
+    def all_hiding_in_objects(self):
+        all_mass = self.all_mass_for_suhoi
+        all_mass_pigm = Decimal(0)
+        all_hiding = Decimal(0)
+        for i in self.list_of_pigment_objects:
+            i = i.mass
+            all_mass_pigm += i
+        for i in self.list_of_pigmpast_objects:
+            i = i.mass * i.suhoi_pigm
+            all_mass_pigm += i
+
+        for i in self.list_of_pigment_objects:
+            all_hiding += (i.mass * i.hiding) / all_mass_pigm
+
+        for i in self.list_of_pigmpast_objects:
+            all_hiding += (i.mass * i.suhoi_pigm
+                           * i.hiding) / all_mass_pigm
+
+        self.hiding_pigm = all_hiding
+
+        suhoi = self.suhoi
+        hiding_lkp = (all_hiding * suhoi * 100) / (all_mass_pigm * 100 / all_mass)
+        self.hiding_dry = hiding_lkp / 100
+
+        wet_hiding_lkp = hiding_lkp / suhoi
+        self.hiding_wet = wet_hiding_lkp
+
+    def filum_in_objects(self):
+        all_mass_pigm = Decimal(0)
+        filum = Decimal(0)
+
+        try:
+            for i in self.list_of_pigment_objects:
+                i = i.mass
+                all_mass_pigm += i
+            for i in self.list_of_pigmpast_objects:
+                i = i.mass * i.suhoi_pigm
+                all_mass_pigm += i
+
+            for i in self.list_of_pigment_objects:
+                filum += (i.mass * i.maslo *
+                          i.hiding) / all_mass_pigm
+            for i in self.list_of_pigmpast_objects:
+                filum += (i.mass * i.suhoi_pigm *
+                          i.hiding
+                          * i.maslo) / all_mass_pigm
+        except Exception as e:
+            logging.error(e, exc_info=True)
+
+            filum = Decimal(0)
+        filum = filum / Decimal(100)
+
+        self.philum = filum
+
+    def all_kokp_maslo_in_objects(self):
+        all_maslo = self.oil
+        filler_and_pigm_mass = Decimal(0)
+        film_mass = Decimal(0)
+        filler_and_pigm_density = Decimal(0)
+        film_density = Decimal(0)
+
+        for i in self.list_of_pigment_objects:
+            filler_and_pigm_mass += i.mass
+        for i in self.list_of_filler_objects:
+            filler_and_pigm_mass += i.mass
+        for i in self.list_of_pigmpast_objects:
+            filler_and_pigm_mass += i.mass * i.suhoi_pigm
+
+        for i in self.list_of_film_objects:
+            film_mass += i.mass * i.suhoi
+        for i in self.list_of_hardener_objects:
+            film_mass += i.mass_for_params * i.suhoi
+        for i in self.list_of_pigmpast_objects:
+            film_mass += i.mass * i.suhoi_film
+        for i in self.list_of_additive_objects:
+            if i.type.lower() == 'пластификатор':
+                film_mass += i.mass * i.suhoi
+
+        for i in self.list_of_pigment_objects:
+            filler_and_pigm_density += ((i.mass * i.density)
+                                        / filler_and_pigm_mass)
+        for i in self.list_of_filler_objects:
+            filler_and_pigm_density += ((i.mass * i.density)
+                                        / filler_and_pigm_mass)
+        for i in self.list_of_pigmpast_objects:
+            filler_and_pigm_density += ((i.mass * i.suhoi_pigm
+                                         * i.density_pigm) / filler_and_pigm_mass)
+
+        for i in self.list_of_film_objects:
+            film_density += ((i.mass * i.suhoi
+                              * i.density_dry) / film_mass)
+        for i in self.list_of_hardener_objects:
+            film_density += ((i.mass_for_params * i.suhoi
+                              * i.density_dry) / film_mass)
+        for i in self.list_of_solvent_objects:
+            film_density += ((i.mass * i.suhoi
+                              * i.density) / film_mass)
+        for i in self.list_of_pigmpast_objects:
+            film_density += ((i.mass * i.suhoi_film
+                              * i.density_dry) / film_mass)
+        for i in self.list_of_additive_objects:
+            if i.type.lower() == 'пластификатор':
+                film_density += ((i.mass * i.suhoi
+                                  * i.density) / film_mass)
+
+        try:
+            kokp = 100 / (1 + ((all_maslo * filler_and_pigm_density) / (100 * film_density)))
+        except Exception as e:
+            logging.error(e, exc_info=True)
+
+            kokp = Decimal(0)
+
+        self.kokp = kokp
+
+        try:
+            okp_kokp = self.okp / self.kokp
+        except Exception as e:
+            logging.error(e, exc_info=True)
+            okp_kokp = Decimal(0)
+
+        self.okp_kokp = okp_kokp * Decimal(100)
+
+
+class SearchCombobox(CustomEntry):
+    def __init__(self, parent, list_names):
+        super(SearchCombobox, self).__init__(parent)
+        self.db = DB()
+        # self.setEditable(True)
+        # self.setDuplicatesEnabled(False)
+        # self.setInsertPolicy(QComboBox.InsertPolicy.NoInsert)
+
+        word_set = set(list_names)
+        completer = QCompleter(word_set)
+        completer.setCaseSensitivity(QtCore.Qt.CaseSensitivity.CaseInsensitive)
+        completer.setCompletionMode(QtWidgets.QCompleter.CompletionMode.PopupCompletion)
+        completer.setFilterMode(Qt.MatchFlag.MatchContains)
+        self.setCompleter(completer)
+        self.update()
+
+
+class Component:
+    db = DB()
+
+    def __init__(self, name, mass, category):
+        self.db = Component.db
+        self.name = name
+        self.mass = Decimal(mass.replace(",", "."))
+        valuta = self.db.get_info_reactive(category, self.name, 'valuta')[0][0]
+        price = Decimal(self.db.get_info_reactive(category, self.name, 'price')[0][0].replace(",", "."))
+        if valuta != 'Руб':
+            self.price = self.convert_price(valuta, price)
+        else:
+            self.price = price
+
+    def convert_price(self, valuta: str, price: Decimal) -> Decimal:
+        get_xml = requests.get(
+            'http://www.cbr.ru/scripts/XML_daily.asp'
+        )
+        exchange_rate = {}
+        # Парсинг XML используя ElementTree
+        structure = ET.fromstring(get_xml.content)
+
+        # Поиск курса доллара (USD ID: R01235)
+        dollar = structure.find("./*[@ID='R01235']/Value")
+        exchange_rate['$'] = dollar.text.replace(',', '.')
+
+        # Поиск курса евро (EUR ID: R01239)
+        euro = structure.find("./*[@ID='R01239']/Value")
+        exchange_rate['€'] = euro.text.replace(',', '.')
+        converted_price = price * Decimal(exchange_rate[valuta])
+
+        return converted_price
+
+
+class Solvents(Component):
+    def __init__(self, name, mass):
+        super(Solvents, self).__init__(name, mass, 'Solvents')
+        self.density = Decimal(self.db.get_info_reactive('Solvents', self.name, 'density')[0][0].replace(",", "."))
+        self.density_solvent = self.density
+        self.suhoi = Decimal('0')
+
+
+class Pigments(Component):
+    def __init__(self, name, mass):
+        super(Pigments, self).__init__(name, mass, 'Pigments')
+        self.density = Decimal(self.db.get_info_reactive('Pigments', self.name, 'density')[0][0].replace(",", "."))
+        self.maslo = Decimal(self.db.get_info_reactive('Pigments', self.name, 'maslo')[0][0].replace(",", "."))
+        self.hiding = Decimal(self.db.get_info_reactive('Pigments', self.name, 'hiding')[0][0].replace(",", "."))
+
+
+class Fillers(Component):
+    def __init__(self, name, mass):
+        super(Fillers, self).__init__(name, mass, 'Fillers')
+        self.density = Decimal(self.db.get_info_reactive('Fillers', self.name, 'density')[0][0].replace(",", "."))
+        self.maslo = Decimal(self.db.get_info_reactive('Fillers', self.name, 'maslo')[0][0].replace(",", "."))
+
+
+class Films(Component):
+    def __init__(self, name, mass):
+        super(Films, self).__init__(name, mass, 'Films')
+        self.suhoi = Decimal(self.db.get_info_reactive('Films', self.name, 'suhoi')[0][0].replace(",", "."))
+        self.density_dry = Decimal(self.db.get_info_reactive('Films', self.name, 'density_dry')[0][0].replace(",", "."))
+        self.density = Decimal(self.db.get_info_reactive('Films', self.name, 'density')[0][0].replace(",", "."))
+        self.density_solvent = Decimal(self.db.get_info_reactive('Films', self.name, 'density_solvent')[0][0].replace(",", "."))
+
+
+class Additives(Component):
+    def __init__(self, name, mass):
+        super(Additives, self).__init__(name, mass, 'Additives')
+        self.suhoi = Decimal(self.db.get_info_reactive('Additives', self.name, 'suhoi')[0][0].replace(",", "."))
+        self.dosage = self.db.get_info_reactive('Additives', self.name, 'dosage')[0][0]
+        self.density = Decimal(self.db.get_info_reactive('Additives', self.name, 'density')[0][0].replace(",", "."))
+        self.type = self.db.get_info_reactive('Additives', self.name, 'type')[0][0]
+        self.density_solvent = Decimal(self.db.get_info_reactive('Additives', self.name, 'density_solvent')[0][0].replace(",", "."))
+
+
+class Pigmpasts(Component):
+    def __init__(self, name, mass):
+        super(Pigmpasts, self).__init__(name, mass, 'Pigmpast')
+        self.suhoi = Decimal(self.db.get_info_reactive('Pigmpast', self.name, 'suhoi')[0][0].replace(",", "."))
+        self.suhoi_pigm = Decimal(self.db.get_info_reactive('Pigmpast', self.name, 'suhoi_pigm')[0][0].replace(",", "."))
+        self.suhoi_film = Decimal(self.db.get_info_reactive('Pigmpast', self.name, 'suhoi_film')[0][0].replace(",", "."))
+        self.maslo = Decimal(self.db.get_info_reactive('Pigmpast', self.name, 'maslo')[0][0].replace(",", "."))
+        self.density = Decimal(self.db.get_info_reactive('Pigmpast', self.name, 'density')[0][0].replace(",", "."))
+        self.density_dry = Decimal(self.db.get_info_reactive('Pigmpast', self.name, 'density_dry')[0][0].replace(",", "."))
+        self.density_pigm = Decimal(self.db.get_info_reactive('Pigmpast', self.name, 'density_pigm')[0][0].replace(",", "."))
+        self.hiding = Decimal(self.db.get_info_reactive('Pigmpast', self.name, 'hiding')[0][0].replace(",", "."))
+        self.density_solvent = Decimal(self.db.get_info_reactive('Pigmpast', self.name, 'density_solvent')[0][0].replace(",", "."))
+
+
+class Hardeners(Component):
+    def __init__(self, name, mass):
+        super(Hardeners, self).__init__(name, mass, 'Hardener')
+        self.suhoi = Decimal(self.db.get_info_reactive('Hardener', self.name, 'suhoi')[0][0].replace(",", "."))
+        self.func_groups = self.db.get_info_reactive('Hardener', self.name, 'func_groups')[0][0]
+        self.density = Decimal(self.db.get_info_reactive('Hardener', self.name, 'density')[0][0].replace(",", "."))
+        self.density_dry = Decimal(self.db.get_info_reactive('Hardener', self.name, 'density_dry')[0][0].replace(",", "."))
+        countable = self.db.get_info_reactive('Hardener', self.name, 'countable')[0][0]
+        if countable.lower().strip() == 'да':
+            self.mass_for_params = self.mass
+        else:
+            self.mass_for_params = Decimal('0')  # для расчета окп кокп СП
+        self.density_solvent = Decimal(self.db.get_info_reactive('Hardener', self.name, 'density_solvent')[0][0].replace(",", "."))
+
+

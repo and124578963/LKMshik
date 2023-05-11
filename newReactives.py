@@ -1,8 +1,7 @@
-import PyQt6
 from PyQt6 import QtCore, QtGui, QtWidgets
 from PyQt6.QtCore import QSize, Qt, QAbstractTableModel, QSortFilterProxyModel
-from PyQt6.QtGui import QColor, QIcon
-from PyQt6.QtWidgets import QHeaderView, QVBoxLayout, QLabel, QWidget, QDialog, QFileDialog
+from PyQt6.QtGui import QIcon
+from PyQt6.QtWidgets import QWidget, QDialog, QFileDialog
 
 from component_card import ComponentCard, EditComponentCard, generate_color
 from settings import TABLE_DICT, get_category, PASSPORT, update_config_param
@@ -102,15 +101,15 @@ class MyComponentsUi(QWidget):
         self.horizontalLayout_2.setSpacing(5)
         self.horizontalLayout_2.setObjectName("horizontalLayout_2")
 
-        self.add_btn = ToolbarBtn(self.toolbar, "add")
+        self.add_btn = DarkBtn_Ui(self.toolbar, "add")
         self.horizontalLayout_2.addWidget(self.add_btn)
         self.add_btn.clicked.connect(self.open_component_card)
 
-        self.del_btn = ToolbarBtn(self.toolbar, "del")
+        self.del_btn = DarkBtn_Ui(self.toolbar, "del")
         self.del_btn.clicked.connect(self.delete_selected)
         self.horizontalLayout_2.addWidget(self.del_btn)
 
-        self.setting_btn = ToolbarBtn(self.toolbar, "setting")
+        self.setting_btn = DarkBtn_Ui(self.toolbar, "setting")
         self.setting_btn.clicked.connect(lambda event: self.open_settings())
         self.horizontalLayout_2.addWidget(self.setting_btn)
 
@@ -300,9 +299,9 @@ class CastomInput(QtWidgets.QLineEdit):
         self.setObjectName("search_lineEdit")
 
 
-class ToolbarBtn(QtWidgets.QPushButton):
+class DarkBtn_Ui(QtWidgets.QPushButton):
     def __init__(self, parent, name):
-        super(ToolbarBtn, self).__init__(parent=parent)
+        super(DarkBtn_Ui, self).__init__(parent=parent)
         dict_btn_img = {
             "add": ["images/add.png", "  Добавить"],
             "del": ["images/del.png", "  Удалить"],
@@ -310,6 +309,7 @@ class ToolbarBtn(QtWidgets.QPushButton):
             "add_proj": ["images/add.png", "  Добавить проект"],
             "warehouse": ["images/warehouse.png", "  Мои компоненты"],
             "edit_proj": ["images/edit_proj.png", "  Изменить проект"],
+            "calc": ["images/calc.png", "  Рассчитать"],
         }
         self.setSizeIncrement(QtCore.QSize(0, 0))
         self.setCursor(QtGui.QCursor(QtCore.Qt.CursorShape.PointingHandCursor))

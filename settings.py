@@ -17,18 +17,29 @@ def get_database_path():
     global DATABASE_PATH
     with SqliteDict('configuration') as mydict:
         key = "database_path"
-        database_path = mydict.get(key, None)
-        if database_path is None:
-            database_path = "reactives.db"
-        else:
-            database_path = Secrets().decrypt_data(database_path).decode()
+        database_path = mydict.get(key, "reactives.db")
+        # if database_path is None:
+        #     database_path = "reactives.db"
+        # else:
+        #     # database_path = Secrets().decrypt_data(database_path).decode()
+        #
         DATABASE_PATH = database_path
         return database_path
+
+def get_suhoi_type():
+    with SqliteDict('configuration') as mydict:
+        key = "suhoi_type"
+        suhoi_type = mydict.get(key, None)
+        if suhoi_type is None:
+            suhoi_type = 0
+        else:
+            suhoi_type = Secrets().decrypt_data(suhoi_type).decode()
+        return suhoi_type
 
 
 def update_config_param(param_name, new_value):
         with SqliteDict("configuration") as mydict:
-            new_value = Secrets().encrypt_data(new_value)
+            new_value = Secrets().encrypt_data(new_value) if param_name != 'database_path' else new_value
             check = mydict.get(param_name, None)
             print(check)
             if check is None:

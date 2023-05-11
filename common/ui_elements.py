@@ -1,3 +1,5 @@
+import copy
+
 from PyQt6 import QtGui, QtCore, QtWidgets
 
 
@@ -17,8 +19,10 @@ class HoverableButton(QtWidgets.QPushButton):
             "save_as": "Сохранить как",
             "word": "Создать Word-файл",
             "del_rec": "Удалить рецептуру",
-            "swap": "Переместить",
+            "swap": "Доп. действия над компонентом",
             "2k": "Показать второй компонент",
+            "settings": "Настройки расчета",
+            "menu": "Дополнительные действия",
         }
         self.setToolTip(tooltip_dict[_type])
 
@@ -33,11 +37,14 @@ class HoverableButton(QtWidgets.QPushButton):
             "del_rec": ["images/del_rec.png", "images/del_rec-on.png"],
             "swap":  ["images/swap_v.png", "images/swap_v.png"],
             "2k": ["images/2K.png", "images/2K-on.png"],
+            "settings": ["images/settings_btn.png", "images/settings_btn-on.png"],
+            "menu": ["images/menu.png", "images/menu-on.png"],
         }
         self.icon = QtGui.QIcon()
         self.icon.addPixmap(QtGui.QPixmap(img_dict[_type][0]), QtGui.QIcon.Mode.Normal, QtGui.QIcon.State.Off)
         self.icon_on = QtGui.QIcon()
         self.icon_on.addPixmap(QtGui.QPixmap(img_dict[_type][1]), QtGui.QIcon.Mode.Normal, QtGui.QIcon.State.Off)
+        self.icon_off = self.icon
         self.setIcon(self.icon)
         self.setIconSize(QtCore.QSize(*size))
         additional = "padding-top: 7px;" if _type not in ["plus", "minus"] else ""
@@ -66,15 +73,31 @@ class HoverableButton(QtWidgets.QPushButton):
         self.hover.emit("leaveEvent")
         self.setIcon(self.icon)
 
+    def set_pressed(self):
+        if self.icon_off is self.icon:
+            self.icon = self.icon_on
+            self.setIcon(self.icon)
+        else:
+            self.icon = self.icon_off
+            self.setIcon(self.icon)
+
+
 class MenuButton(HoverableButton):
     def __init__(self, parent, _type, size):
         super(MenuButton, self).__init__(parent, _type, size)
 
-    def mouseDoubleClickEvent(self, a0: QtGui.QMouseEvent) -> None:
-        super(MenuButton, self).mouseDoubleClickEvent(a0)
-        self.showMenu()
 
-    def mousePressEvent(self, e: QtGui.QMouseEvent) -> None:
-        pass
+    # def mouseDoubleClickEvent(self, a0: QtGui.QMouseEvent) -> None:
+    #     super(MenuButton, self).mouseDoubleClickEvent(a0)
+    #     self.showMenu()
+    #
+
+    # def mousePressEvent(self, e: QtGui.QMouseEvent) -> None:
+    #     # super(MenuButton, self).mousePressEvent(e)
+    #     pass
+
+    # def contextMenuEvent(self, a0: QtGui.QContextMenuEvent) -> None:
+    #     super(MenuButton, self).contextMenuEvent(a0)
+    #
 
 

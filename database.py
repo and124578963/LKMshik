@@ -569,5 +569,53 @@ class DB:
         self.c.execute(f'''DELETE FROM Producer where active = 0''')
         self.conn.commit()
 
+    @connect_db_decorator
+    def search(self, search):
+        global password
+        search = search.lower()
+        search = ('%' + search + '%')
+        self.c.execute('''SELECT Name FROM Solvents WHERE LOWER(DECODE(Name)) LIKE ? 
+           UNION SELECT Name FROM Pigments WHERE LOWER(DECODE(Name)) LIKE ? 
+           UNION SELECT Name FROM Fillers WHERE LOWER(DECODE(Name)) LIKE ?
+           UNION SELECT Name FROM Films WHERE LOWER(DECODE(Name)) LIKE ?
+           UNION SELECT Name FROM Additives WHERE LOWER(DECODE(Name)) LIKE ?
+           UNION SELECT Name FROM PigmPast WHERE LOWER(DECODE(Name)) LIKE ?
+           UNION SELECT Name FROM Hardener WHERE LOWER(DECODE(Name)) LIKE ?''',
+                       [search for _ in range(7)])
+        fetchall = self.c.fetchall()
+        decode_fetchall = []
+        for item in fetchall:
+            item_list = []
+            for value in item:
+                if type(value) != int:
+                    if ENCRYPT_REACTIVES:
+                        item_list.append(self.symmetric_decrypt(bytes(value), password).decode())
+                    else:
+                        item_list.append(value)
+                else:
+                    item_list.append(value)
+            decode_fetchall.append(item_list)
 
+        decode_fetchall = list(map(lambda x: x[0], decode_fetchall))
+
+        return decode_fetchall
+
+
+    @connect_db_decorator
+    def get_info_reactive(self, group, name, values):
+        self.c.execute(f'''SELECT {values} FROM {group} WHERE LOWER(DECODE(Name)) LIKE LOWER(?)''', [name])
+        fetchall = self.c.fetchall()
+        decode_fetchall = []
+        for item in fetchall:
+            item_list = []
+            for value in item:
+                if type(value) != int:
+                    if ENCRYPT_REACTIVES:
+                        item_list.append(self.symmetric_decrypt(bytes(value), password).decode())
+                    else:
+                        item_list.append(value)
+                else:
+                    item_list.append(value)
+            decode_fetchall.append(item_list)
+        return decode_fetchall
 
