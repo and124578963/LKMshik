@@ -10,7 +10,7 @@ from PyQt6.QtWidgets import QCompleter
 from sqlitedict import SqliteDict
 
 from common.secrets import Secrets
-from common.ui_elements import HoverableButton, MenuButton
+from common.ui_elements import HoverableButton, MenuButton, ColorButton, CustomMenu, CustomRadioBtn
 from component_card import CustomEntry
 from database import DB
 from typing import List, Tuple
@@ -26,13 +26,13 @@ class ReceptureWindow(QtWidgets.QWidget):
         self.project = project_name
         self.iter = iter_name
         self.name = name
+        self.setWindowTitle(f"{self.project} - {self.iter} - {self.name}")
         self.recepture_data = ReceptureDataModel(project_name, iter_name, name)
         self.recepture_data.load_data()
 
         self.list_comp_row_obj = []
         self.list_comp_2_row_obj = []
 
-        self.setWindowTitle(self.name)
         self.verticalLayout_3 = QtWidgets.QVBoxLayout(self)
         self.verticalLayout_3.setContentsMargins(0, 0, 0, 0)
         self.verticalLayout_3.setSpacing(0)
@@ -218,46 +218,38 @@ class ReceptureWindow(QtWidgets.QWidget):
 
 
         l = QtWidgets.QLabel(parent=self.right_side)
-        l.setText("Расчет компонентов")
+        l.setText("Дополнительные функции")
+        font = QtGui.QFont()
+        font.setPointSize(11)
+        l.setFont(font)
         self.verticalLayout_6.addWidget(l,alignment=QtCore.Qt.AlignmentFlag.AlignLeft)
 
         w, lo = self.create_w_lo(self.right_side, self.verticalLayout_6)
-        self.count_additives_btn = QtWidgets.QPushButton(parent=w)
-        self.count_additives_btn.setText("Расчет функц. добавок")
-        lo.addWidget(self.count_additives_btn)
-
-        self.hardener_btn = QtWidgets.QPushButton(parent=w)
-        self.hardener_btn.setText("Расчет отвердителя")
-        lo.addWidget(self.hardener_btn)
-
-
-        w, lo = self.create_w_lo(self.right_side, self.verticalLayout_6)
-        self.recount_maslo_btn = QtWidgets.QPushButton(parent=w)
-        self.recount_maslo_btn.setText("Заменить по маслоемкости")
-        lo.addWidget(self.recount_maslo_btn)
-
-        l = QtWidgets.QLabel(parent=self.right_side)
-        l.setText("Расчет рецептур")
-        self.verticalLayout_6.addWidget(l, alignment=QtCore.Qt.AlignmentFlag.AlignLeft)
+        self.count_components_btn = ColorButton(w,  "blue")
+        self.count_components_btn.setText("Расчет компонентов")
+        menu = CustomMenu(self)
+        menu.addAction('Расчет функц. добавок', lambda: print(1))
+        menu.addAction('Расчет отвердителя', lambda: print(1))
+        menu.addAction('Заменить по маслоемкости', lambda: print(1))
+        self.count_components_btn.setMenu(menu)
+        lo.addWidget(self.count_components_btn)
 
         w, lo = self.create_w_lo(self.right_side, self.verticalLayout_6)
-        self.recount_const = QtWidgets.QPushButton(parent=w)
-        self.recount_const.setText("По константе наполнения")
-        lo.addWidget(self.recount_const)
-
-        self.recont_comb = QtWidgets.QPushButton(parent=w)
-        self.recont_comb.setText( "Комбинированный")
-        lo.addWidget(self.recont_comb)
-
-
-        l = QtWidgets.QLabel(parent=self.right_side)
-        l.setText("Дополнительные функции")
-        self.verticalLayout_6.addWidget(l, alignment=QtCore.Qt.AlignmentFlag.AlignLeft)
+        self.count_new_recepture = ColorButton(w,  "blue")
+        self.count_new_recepture.setText("Расчет рецептур")
+        menu = CustomMenu(self)
+        menu.addAction('По константе наполнения', lambda: print(1))
+        menu.addAction('Комбинированный расчет', lambda: print(1))
+        self.count_new_recepture.setMenu(menu)
+        lo.addWidget(self.count_new_recepture)
 
         w, lo = self.create_w_lo(self.right_side, self.verticalLayout_6)
-        self.philum_btn = QtWidgets.QPushButton(w)
-        self.philum_btn.setText("Филумы пигментов")
-        lo.addWidget(self.philum_btn)
+        self.others = ColorButton(w,  "blue")
+        self.others.setText("Разное")
+        menu = CustomMenu(self)
+        menu.addAction('Филумы пигментов', lambda: print(1))
+        self.others.setMenu(menu)
+        lo.addWidget(self.others)
 
 
         spacerItem2 = QtWidgets.QSpacerItem(20, 40, QtWidgets.QSizePolicy.Policy.Minimum,
@@ -280,20 +272,8 @@ class ReceptureWindow(QtWidgets.QWidget):
         self.amount_all_value = QtWidgets.QLabel(parent=self.all_amount_w)
         self.horizontalLayout_8.addWidget(self.amount_all_value)
         self.recount_btn = HoverableButton(self.all_amount_w, "menu", (16,16))
-        menu = QtWidgets.QMenu(self)
-        menu.setStyleSheet(
-            """
-            QMenu
-            {
-                font: 12pt;
-                background-color: #eee;
-            }
-            QMenu::item:selected
-            {
-                background-color: #209fa6
-            }
-            """
-        )
+        menu = CustomMenu(self)
+
         menu.addAction('Списать компоненты', lambda :print(1))
         menu.addAction('Пересчитать массу', lambda :print(1))
         menu.addAction('Довести растворителем', lambda :print(1))
@@ -302,8 +282,9 @@ class ReceptureWindow(QtWidgets.QWidget):
 
         self.horizontalLayout_8.addWidget(self.recount_btn)
         self.left_vertical_lo.addWidget(self.all_amount_w)
-
         self.tabWidget.addTab(self.recepture_tab, "")
+
+
 
         self.experimental_tab = QtWidgets.QWidget()
         self.verticalLayout_4 = QtWidgets.QVBoxLayout(self.experimental_tab)
@@ -316,73 +297,108 @@ class ReceptureWindow(QtWidgets.QWidget):
         self.exp_params_w.setObjectName("exp_params_w")
         self.gridLayout_2 = QtWidgets.QGridLayout(self.exp_params_w)
         self.gridLayout_2.setObjectName("gridLayout_2")
-        self.name_l = QtWidgets.QLabel(parent=self.exp_params_w)
-        self.name_l.setObjectName("name_l")
-        self.gridLayout_2.addWidget(self.name_l, 1, 0, 1, 1)
+
+        l = QtWidgets.QLabel(parent=self.exp_params_w)
+        l.setText("Экспериментальные значения")
+        font = QtGui.QFont()
+        font.setPointSize(12)
+        l.setFont(font)
+        self.gridLayout_2.addWidget(l, 0, 0, 1, 2)
+
+        self.scrollArea_2 = QtWidgets.QScrollArea(parent=self.exp_params_w)
+        self.scrollArea_2.setMinimumSize(QtCore.QSize(475, 350))
+        self.scrollArea_2.setMaximumSize(QtCore.QSize(700, 16777215))
+        self.scrollArea_2.setWidgetResizable(True)
+        self.scrollArea_2.setObjectName("scrollArea")
+        self.exp_params_w.setStyleSheet("""
+                                QWidget#recepture{
+                                          background: #f9f9f9;
+                                          border: 0px solid black;
+                                          }
+                                QScrollArea#scrollArea{
+                                   background: #f9f9f9;
+                                   border: 0px solid #bbb;
+                                   }          
+                                          """)
+        self.exp_s_area = QtWidgets.QWidget()
+        self.exp_s_area.setGeometry(QtCore.QRect(0, 0, 500, 700))
+        self.exp_s_area.setObjectName("recepture")
+        self.gridLayout_3 = QtWidgets.QGridLayout(self.exp_s_area)
+        self.gridLayout_3.setVerticalSpacing(3)
+        l = QtWidgets.QLabel(parent=self.exp_s_area)
+        l.setText("Название")
+        font = QtGui.QFont()
+        font.setPointSize(10)
+        l.setFont(font)
+        self.gridLayout_3.addWidget(l, 1, 0, 1, 1)
+
+        l = QtWidgets.QLabel(parent=self.exp_s_area)
+        l.setAlignment(QtCore.Qt.AlignmentFlag.AlignCenter)
+        l.setText("Требуемое \n"  "значение")
+        font = QtGui.QFont()
+        font.setPointSize(10)
+        l.setFont(font)
+        self.gridLayout_3.addWidget(l, 1, 1, 1, 1)
+
+        l = QtWidgets.QLabel(parent=self.exp_s_area)
+        l.setAlignment(QtCore.Qt.AlignmentFlag.AlignCenter)
+        l.setText("Полученное \nзначение")
+        font = QtGui.QFont()
+        font.setPointSize(10)
+        l.setFont(font)
+        self.gridLayout_3.addWidget(l, 1, 2, 1, 1)
+
+        l = QtWidgets.QLabel(parent=self.exp_s_area)
+        l.setAlignment(QtCore.Qt.AlignmentFlag.AlignCenter)
+        l.setText("Успех")
+        font = QtGui.QFont()
+        font.setPointSize(10)
+        l.setFont(font)
+        self.gridLayout_3.addWidget(l, 1, 3, 1, 3)
+
+        for row in self.recepture_data.experiment_list:
+            self.add_exp_row(*row)
+
         spacerItem3 = QtWidgets.QSpacerItem(20, 40, QtWidgets.QSizePolicy.Policy.Minimum,
                                             QtWidgets.QSizePolicy.Policy.Expanding)
-        self.gridLayout_2.addItem(spacerItem3, 3, 0, 1, 1)
-        self.gray_rb = QtWidgets.QRadioButton(parent=self.exp_params_w)
-        self.gray_rb.setText("")
-        self.gray_rb.setObjectName("gray_rb")
-        self.gridLayout_2.addWidget(self.gray_rb, 2, 4, 1, 1)
-        self.label_3 = QtWidgets.QLabel(parent=self.exp_params_w)
-        self.label_3.setAlignment(QtCore.Qt.AlignmentFlag.AlignCenter)
-        self.label_3.setObjectName("label_3")
-        self.gridLayout_2.addWidget(self.label_3, 1, 1, 1, 1)
-        self.label = QtWidgets.QLabel(parent=self.exp_params_w)
-        self.label.setObjectName("label")
-        self.gridLayout_2.addWidget(self.label, 0, 0, 1, 1)
-        self.green_rb = QtWidgets.QRadioButton(parent=self.exp_params_w)
-        self.green_rb.setText("")
-        self.green_rb.setObjectName("green_rb")
-        self.gridLayout_2.addWidget(self.green_rb, 2, 3, 1, 1)
-        self.label_4 = QtWidgets.QLabel(parent=self.exp_params_w)
-        self.label_4.setAlignment(QtCore.Qt.AlignmentFlag.AlignCenter)
-        self.label_4.setObjectName("label_4")
-        self.gridLayout_2.addWidget(self.label_4, 1, 2, 1, 1)
-        self.required_value_l = QtWidgets.QLabel(parent=self.exp_params_w)
-        self.required_value_l.setMaximumSize(QtCore.QSize(100, 16777215))
-        self.required_value_l.setObjectName("required_value_l")
-        self.gridLayout_2.addWidget(self.required_value_l, 2, 1, 1, 1)
-        self.exp_param_name_l = QtWidgets.QLabel(parent=self.exp_params_w)
-        self.exp_param_name_l.setMinimumSize(QtCore.QSize(200, 0))
-        self.exp_param_name_l.setObjectName("exp_param_name_l")
-        self.gridLayout_2.addWidget(self.exp_param_name_l, 2, 0, 1, 1)
-        self.recived_value_entry = QtWidgets.QLineEdit(parent=self.exp_params_w)
-        self.recived_value_entry.setMaximumSize(QtCore.QSize(100, 16777215))
-        self.recived_value_entry.setObjectName("recived_value_entry")
-        self.gridLayout_2.addWidget(self.recived_value_entry, 2, 2, 1, 1)
-        self.red_rb = QtWidgets.QRadioButton(parent=self.exp_params_w)
-        self.red_rb.setText("")
-        self.red_rb.setObjectName("red_rb")
-        self.gridLayout_2.addWidget(self.red_rb, 2, 5, 1, 1)
+        self.gridLayout_3.addItem(spacerItem3, 100, 0, 1, 1)
+
+        self.scrollArea_2.setWidget(self.exp_s_area)
+        self.gridLayout_2.addWidget(self.scrollArea_2, 2, 0, 1, 4)
+
+        spacerItem3 = QtWidgets.QSpacerItem(20, 40, QtWidgets.QSizePolicy.Policy.Minimum,
+                                            QtWidgets.QSizePolicy.Policy.Expanding)
+        self.gridLayout_2.addItem(spacerItem3, 100, 0, 1, 1)
+
         self.horizontalLayout_2.addWidget(self.exp_params_w)
         self.color_w = QtWidgets.QWidget(parent=self.exp_body_w)
         self.color_w.setObjectName("color_w")
-        self.gridLayout_3 = QtWidgets.QGridLayout(self.color_w)
-        self.gridLayout_3.setObjectName("gridLayout_3")
+        self.gridLayout_4 = QtWidgets.QGridLayout(self.color_w)
+        self.gridLayout_4.setObjectName("gridLayout_3")
         self.select_color_btn = QtWidgets.QPushButton(parent=self.color_w)
         self.select_color_btn.setObjectName("select_color_btn")
-        self.gridLayout_3.addWidget(self.select_color_btn, 3, 0, 1, 2)
+        self.gridLayout_4.addWidget(self.select_color_btn, 3, 0, 1, 2)
         self.lable_color2 = QtWidgets.QLabel(parent=self.color_w)
         self.lable_color2.setObjectName("lable_color2")
-        self.gridLayout_3.addWidget(self.lable_color2, 1, 1, 1, 1)
+        self.gridLayout_4.addWidget(self.lable_color2, 1, 1, 1, 1)
         self.color1 = QtWidgets.QLabel(parent=self.color_w)
         self.color1.setObjectName("color1")
-        self.gridLayout_3.addWidget(self.color1, 2, 0, 1, 1)
+        self.gridLayout_4.addWidget(self.color1, 2, 0, 1, 1)
         spacerItem4 = QtWidgets.QSpacerItem(20, 40, QtWidgets.QSizePolicy.Policy.Minimum,
                                             QtWidgets.QSizePolicy.Policy.Expanding)
-        self.gridLayout_3.addItem(spacerItem4, 4, 0, 1, 1)
+        self.gridLayout_4.addItem(spacerItem4, 4, 0, 1, 1)
         self.lable_name = QtWidgets.QLabel(parent=self.color_w)
         self.lable_name.setObjectName("lable_name")
-        self.gridLayout_3.addWidget(self.lable_name, 0, 0, 1, 1)
+        font = QtGui.QFont()
+        font.setPointSize(12)
+        self.lable_name.setFont(font)
+        self.gridLayout_4.addWidget(self.lable_name, 0, 0, 1, 1)
         self.color2 = QtWidgets.QLabel(parent=self.color_w)
         self.color2.setObjectName("color2")
-        self.gridLayout_3.addWidget(self.color2, 2, 1, 1, 1)
+        self.gridLayout_4.addWidget(self.color2, 2, 1, 1, 1)
         self.lable_color1 = QtWidgets.QLabel(parent=self.color_w)
         self.lable_color1.setObjectName("lable_color1")
-        self.gridLayout_3.addWidget(self.lable_color1, 1, 0, 1, 1)
+        self.gridLayout_4.addWidget(self.lable_color1, 1, 0, 1, 1)
         self.horizontalLayout_2.addWidget(self.color_w)
         spacerItem5 = QtWidgets.QSpacerItem(40, 20, QtWidgets.QSizePolicy.Policy.Expanding,
                                             QtWidgets.QSizePolicy.Policy.Minimum)
@@ -412,7 +428,6 @@ class ReceptureWindow(QtWidgets.QWidget):
         lo.setContentsMargins(0,0,0,0)
         parent_lo.addWidget(w)
         return w, lo
-
 
     def add_toolbar(self, parent: QtWidgets) -> QtWidgets.QFrame:
         toolbar = QtWidgets.QFrame(parent=parent)
@@ -475,6 +490,9 @@ class ReceptureWindow(QtWidgets.QWidget):
         list_obj.append(row)
         self.reset_row_number(_type)
 
+    def add_exp_row(self, name, needed, value, state):
+        ExperimentRow(self.exp_s_area, self.gridLayout_3, name, needed, value, state)
+
     def reset_row_number(self, _type: str):
         list_obj: List[ComponentRow]
         list_obj = self.list_comp_row_obj if _type == "one" else self.list_comp_2_row_obj
@@ -486,17 +504,10 @@ class ReceptureWindow(QtWidgets.QWidget):
 
     def retranslateUi(self, MainWindow):
         _translate = QtCore.QCoreApplication.translate
-        MainWindow.setWindowTitle(_translate("MainWindow", "MainWindow"))
+
 
         self.tabWidget.setTabText(self.tabWidget.indexOf(self.recepture_tab), _translate("MainWindow", "Рецептура"))
-        self.name_l.setText(_translate("MainWindow", "Название"))
-        self.label_3.setText(_translate("MainWindow", "Требуемое \n"
-                                                      "значение"))
-        self.label.setText(_translate("MainWindow", "Экспериментальные значения"))
-        self.label_4.setText(_translate("MainWindow", "Полученное \n"
-                                                      "значение"))
-        self.required_value_l.setText(_translate("MainWindow", "50"))
-        self.exp_param_name_l.setText(_translate("MainWindow", "Укрывистость"))
+
         self.select_color_btn.setText(_translate("MainWindow", "Выбрать цвет"))
         self.lable_color2.setText(_translate("MainWindow", "Полученный цвет"))
         self.color1.setText(_translate("MainWindow", "цвет1"))
@@ -508,10 +519,14 @@ class ReceptureWindow(QtWidgets.QWidget):
         self.tabWidget.setTabText(self.tabWidget.indexOf(self.description_tab), _translate("MainWindow", "Заметки"))
 
     def collect_rows_data(self):
-        list_comp_1 = [i.get_data() for i in self.list_comp_row_obj]
-        list_comp_category_1 = [i.get_category() for i in self.list_comp_row_obj]
-        list_comp_2 = [i.get_data() for i in self.list_comp_2_row_obj]
-        list_comp_category_2 = [i.get_category() for i in self.list_comp_2_row_obj]
+        list_1 = list(filter(lambda x: x!= None, self.list_comp_row_obj))
+        list_2 = list(filter(lambda x: x!= None, self.list_comp_2_row_obj))
+
+        list_comp_1 = [i.get_data() for i in list_1]
+        list_comp_category_1 = [i.get_category() for i in list_1]
+        list_comp_2 = [i.get_data() for i in list_2]
+        list_comp_category_2 = [i.get_category() for i in list_2]
+
         self.recepture_data.component_list = list_comp_1
         self.recepture_data.component_list_2 = list_comp_2
         self.recepture_data.category_list = list_comp_category_1
@@ -548,7 +563,6 @@ class ReceptureWindow(QtWidgets.QWidget):
         )
         for lable, value, size in list_update_lable_value:
             self.update_lable_param(lable, value, size)
-
 
     def normalize_number(self, number: Decimal) -> str:
         normalized = number.normalize()
@@ -634,20 +648,7 @@ class ComponentRow(QtWidgets.QWidget):
         self.swap = MenuButton(self, "swap", (20, 20))
         self.swap.setMaximumSize(QtCore.QSize(20, 20))
 
-        menu = QtWidgets.QMenu(self)
-        menu.setStyleSheet(
-            """
-            QMenu
-            {
-                font: 12pt;
-                background-color: #eee;
-            }
-            QMenu::item:selected
-            {
-                background-color: #209fa6
-            }
-            """
-            )
+        menu = CustomMenu(self)
         menu.addAction('Сделать комментарием', self.change_state)
         menu.addAction('Удалить', self.delete)
 
@@ -780,6 +781,59 @@ class ComponentRow(QtWidgets.QWidget):
         return self.category
 
 
+class ExperimentRow:
+    row = 2
+
+    def __init__(self, parent, lo: QtWidgets.QGridLayout, name: str, needed: str, value: str, state: int):
+        name_l = QtWidgets.QLabel(parent=parent)
+        name_l.setMinimumSize(QtCore.QSize(200, 0))
+        name_l.setText(name)
+        lo.addWidget(name_l, ExperimentRow.row, 0, 1, 1)
+
+        needed_l = QtWidgets.QLabel(parent=parent)
+        needed_l.setMaximumSize(QtCore.QSize(100, 16777215))
+        needed_l.setAlignment(QtCore.Qt.AlignmentFlag.AlignCenter)
+        needed_l.setText(needed)
+        lo.addWidget(needed_l, ExperimentRow.row, 1, 1, 1)
+
+        self.value = CustomEntry(parent=parent)
+        self.value.setMaximumSize(QtCore.QSize(100, 16777215))
+        self.value.setText(value)
+        lo.addWidget(self.value, ExperimentRow.row, 2, 1, 1)
+
+        number_group = QtWidgets.QButtonGroup(parent)
+        self.gray_rb = CustomRadioBtn("grey")
+        self.gray_rb.setText("")
+        self.gray_rb.setObjectName("gray_rb")
+        number_group.addButton(self.gray_rb)
+        lo.addWidget(self.gray_rb, ExperimentRow.row, 4, 1, 1)
+
+        self.green_rb = CustomRadioBtn("green")
+        self.green_rb.setText("")
+        self.green_rb.setObjectName("green_rb")
+        number_group.addButton(self.green_rb)
+        lo.addWidget(self.green_rb, ExperimentRow.row, 3, 1, 1)
+
+        self.red_rb = CustomRadioBtn("red")
+        self.red_rb.setText("")
+        self.red_rb.setObjectName("red_rb")
+        number_group.addButton(self.red_rb)
+        lo.addWidget(self.red_rb, ExperimentRow.row, 5, 1, 1)
+
+
+        if state == 0:
+            self.gray_rb.setChecked(True)
+        elif state == 1:
+            self.green_rb.setChecked(True)
+        elif state == -1:
+            self.red_rb.setChecked(True)
+
+        ExperimentRow.row += 1
+
+    def get(self):
+        return self.value.text()
+
+
 class ReceptureDataModel:
     def __init__(self, project, iteration, name):
         self.project = project
@@ -795,6 +849,7 @@ class ReceptureDataModel:
         self.component_list_2 = [("", "") for _ in range(3)]
         self.category_list_2 = ["" for _ in range(7)]
         self.experiment_list = []
+        self.exp_list_status = None
         self.notes = ""
 
         self.flag_2k = False
@@ -866,13 +921,17 @@ class ReceptureDataModel:
             configs = self.data.pop(9)
             self.price_K = configs.get('price_K', 1.0)
             self.accurate_density = configs.get('accurate_density', 0.0)
+            self.exp_list_status = configs.get('exp_list_status', None)
 
         for i, param in enumerate(self.data):
             self.data[i] = list(map(self.map_decrypt, param))
 
+        if self.exp_list_status == None:
+            self.exp_list_status = [0 for _ in self.data[2]]
+
         self.component_list = list(zip(self.data[0], self.data[1]))
         self.component_list_2 = list(zip(self.data[7], self.data[8]))
-        self.experiment_list = list(zip(self.data[2], self.data[5], self.data[3]))
+        self.experiment_list = list(zip(self.data[2], self.data[5], self.data[3], self.exp_list_status))
         self.notes = self.data[4]
 
         # self.properies=['Цена','м.д.н.в','СП','ОКП','Масло','Кп','Ср укрыв','Укрыв сух пленки','Филум', 'КОКП', 'Укр мокрой пл', 'плотность']
@@ -893,9 +952,6 @@ class ReceptureDataModel:
         for comp in self.component_list_2:
             if comp[0] != '' and comp[1] != '':
                 self.flag_2k = True
-
-    def collect_data(self):
-        pass
 
     def save_data(self, event=None):
         self.collect_data()

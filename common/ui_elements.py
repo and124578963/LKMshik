@@ -82,6 +82,62 @@ class HoverableButton(QtWidgets.QPushButton):
             self.setIcon(self.icon)
 
 
+class ColorButton(QtWidgets.QPushButton):
+    def __init__(self, parent: QtWidgets.QWidget, color: str):
+        super(ColorButton, self).__init__(parent=parent)
+        dict_btn_color = {
+            "blue": "#3f768d",
+        }
+        self.setSizeIncrement(QtCore.QSize(0, 0))
+        self.setCursor(QtGui.QCursor(QtCore.Qt.CursorShape.PointingHandCursor))
+
+        self.setObjectName(color)
+        self.setStyleSheet("""
+                QPushButton{{
+                  color: #555;
+                  font-weight: 700;
+                  text-decoration: none;
+                  padding: .3em 1em;
+                  outline: none;
+                  border: 1px solid #ddd;
+                  border-radius: 0px;
+                  transition: 0.3s;
+                  background: #eee;
+                }}
+                
+                QPushButton:hover {{
+                color: #fff;
+          background: {0};
+          border: 1px solid #ddd;
+         }}
+        QPushButton:pressed  {{
+        border: 2px solid {0};
+          }}
+          QPushButton::menu-indicator {{ image: none; }}
+                """.format(dict_btn_color.get(color, "blue")))
+
+
+class CustomMenu(QtWidgets.QMenu):
+    def __init__(self, parent):
+        super(CustomMenu, self).__init__(parent)
+        self.setStyleSheet(
+            """
+            QMenu
+            {
+                font: 12pt;
+                background-color: #f2f2f2;
+            }
+            QMenu::item{
+            background-color: #f2f2f2;
+            }
+            QMenu::item:selected
+            {
+                background-color: #3f768d
+            }
+            """
+        )
+
+
 class MenuButton(HoverableButton):
     def __init__(self, parent, _type, size):
         super(MenuButton, self).__init__(parent, _type, size)
@@ -101,3 +157,24 @@ class MenuButton(HoverableButton):
     #
 
 
+class CustomRadioBtn(QtWidgets.QRadioButton):
+    def __init__(self, color):
+        super(CustomRadioBtn, self).__init__()
+        color_dict = {
+            "red": ["images/radioButton/rb-red.png", "images/radioButton/rb-red-true.png"],
+            "green": ["images/radioButton/rb-green.png", "images/radioButton/rb-green-true.png"],
+            "grey": ["images/radioButton/rb-grey.png", "images/radioButton/rb-grey-true.png"],
+        }
+        self.setCursor(QtGui.QCursor(QtCore.Qt.CursorShape.PointingHandCursor))
+        self.setStyleSheet(
+            """
+
+QRadioButton::indicator {{
+                width:20px;height:20px;
+                border-radius:0px;
+                }}
+QRadioButton::indicator:checked {{border-image: url({1});}}
+QRadioButton::indicator:unchecked {{border-image: url({0});}}
+                
+""".format(color_dict[color][0], color_dict[color][1])
+        )
