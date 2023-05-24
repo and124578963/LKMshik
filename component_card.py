@@ -7,6 +7,7 @@ from PyQt6.QtCore import QRegularExpression
 from PyQt6.QtGui import QColor, QImage, QIcon, QRegularExpressionValidator
 from PyQt6.QtWidgets import QWidget, QGridLayout, QFileDialog, QColorDialog
 
+from common.ui_elements import generate_color
 from database import DB
 from settings import TABLE_DICT, get_category, get_lables, get_columns, get_desc
 
@@ -449,19 +450,6 @@ class ComponentCard(QWidget):
         # self.color_icon.setPixmap(QtGui.QPixmap(QImage(ImageQt(self.generate_color(hexcolor)))))
         self.color_btn.setIcon(QIcon(QtGui.QPixmap(generate_color(hexcolor))))
         self.hexcolor = hexcolor
-
-
-def generate_color(argb: str) -> QImage:
-    background = Image.open("images/black_white_background.png")
-    background = background.convert("RGBA")
-    width, height = background.size
-    rgba = "#" + argb[3:9] + argb[1:3]
-    rgba = ImageColor.getcolor(rgba, "RGBA")
-    color_loyout = Image.new("RGBA", (width, height), rgba)
-    color_loyout.convert("RGBA")
-    result = Image.alpha_composite(background, color_loyout)
-    background.close()
-    return QImage(ImageQt(result))
 
 
 class EditComponentCard(ComponentCard):

@@ -1,7 +1,10 @@
 import copy
 
-from PyQt6 import QtGui, QtCore, QtWidgets
 
+from PyQt6 import QtGui, QtCore, QtWidgets
+from PyQt6.QtGui import QImage
+from PIL import Image, ImageColor
+from PIL.ImageQt import ImageQt
 
 class HoverableButton(QtWidgets.QPushButton):
     hover = QtCore.pyqtSignal(str)
@@ -178,3 +181,17 @@ QRadioButton::indicator:unchecked {{border-image: url({0});}}
                 
 """.format(color_dict[color][0], color_dict[color][1])
         )
+
+
+
+def generate_color(argb: str) -> QImage:
+    background = Image.open("images/black_white_background.png")
+    background = background.convert("RGBA")
+    width, height = background.size
+    rgba = "#" + argb[3:9] + argb[1:3]
+    rgba = ImageColor.getcolor(rgba, "RGBA")
+    color_loyout = Image.new("RGBA", (width, height), rgba)
+    color_loyout.convert("RGBA")
+    result = Image.alpha_composite(background, color_loyout)
+    background.close()
+    return QImage(ImageQt(result))

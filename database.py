@@ -619,3 +619,12 @@ class DB:
             decode_fetchall.append(item_list)
         return decode_fetchall
 
+    @connect_db_decorator
+    def update_warehouse(self, group, name, warehouse):
+        global password
+        if ENCRYPT_REACTIVES:
+            warehouse = self.symmetric_encrypt(warehouse.encode(), password)
+
+        self.c.execute(f'''UPDATE {group} SET warehouse=? WHERE DECODE(name)=?''',
+                       (warehouse, name,), )
+        self.conn.commit()

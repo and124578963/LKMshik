@@ -1,69 +1,107 @@
-import sys, os
-from PyQt6 import QtWidgets, QtCore
-from PyQt6.QtWidgets import QWidget, QComboBox, QHBoxLayout, QApplication, QCompleter, QCheckBox, QLabel, QLineEdit
+import sys, random
+
+import PyQt6
+from PyQt6.QtCore import QMimeData, Qt, QEvent
+from PyQt6.QtGui import QDrag
+from PyQt6.QtWidgets import QApplication, QVBoxLayout, QFrame, QHBoxLayout, QGridLayout, QWidget, QScrollArea, QDialog, \
+    QLabel
+
+
+class IndicSelectWindow(QDialog):
+
+    def __init__(self, parent=None):
+        super(IndicSelectWindow, self).__init__(parent=parent)
+        self.resize(1000, 800)
+
+        self.target = None
+        self.setAcceptDrops(True)
+        self.layout = QHBoxLayout(self)
+        self.scrollArea = QScrollArea(self)
+        self.scrollArea.setWidgetResizable(True)
+        self.scrollAreaWidgetContents = QWidget()
+        self.gridLayout = QGridLayout(self.scrollAreaWidgetContents)
+        self.scrollArea.setWidget(self.scrollAreaWidgetContents)
+        self.layout.addWidget(self.scrollArea)
+
+        for i in range(3):
+            for j in range(3):
+                self.Frame = QFrame(self)
+                self.Frame.setStyleSheet("background-color: white;")
+
+                self.Frame.setLineWidth(2)
+                self.layout = QHBoxLayout(self.Frame)
+                l = QLabel(parent=self.Frame)
+                l.setText(str(i)+str(j))
+                Box = QVBoxLayout()
+
+                Box.addWidget(self.Frame)
+
+                self.gridLayout.addLayout(Box, i, j)
+                self.gridLayout.setColumnStretch(i % 3, 1)
+                self.gridLayout.setRowStretch(j, 1)
+
+    def eventFilter(self, watched, event):
+        if event.type() == QEvent.Type.MouseButtonPress:
+            self.mousePressEvent(event)
+        elif event.type() == QEvent.Type.MouseMove:
+            self.mouseMoveEvent(event)
+        elif event.type() == QEvent.Type.MouseButtonRelease:
+            self.mouseReleaseEvent(event)
+        return super().eventFilter(watched, event)
+
+    def get_index(self, pos):
+        for i in range(self.gridLayout.count()):
+            if self.gridLayout.itemAt(i).geometry().contains(pos) and i != self.target:
+                return i
+
+    def mousePressEvent(self, event:PyQt6.QtGui.QMouseEvent):
+        if event.button() == Qt.MouseButton.LeftButton:
+            self.target = self.get_index(event.position().toPoint())
+        else:
+            self.target = None
+
+    def mouseMoveEvent(self, event):
+        if event.buttons() & Qt.MouseButton.LeftButton and self.target is not None:
+            drag = QDrag(self.gridLayout.itemAt(self.target))
+            pix = self.gridLayout.itemAt(self.target).itemAt(0).widget().grab()
+            mimedata = QMimeData()
+            mimedata.setImageData(pix)
+            drag.setMimeData(mimedata)
+            drag.setPixmap(pix)
+            # drag.setHotSpot(event.pos())
+            drag.exec()
+
+    def mouseReleaseEvent(self, event):
+        self.target = None
+
+    def dragEnterEvent(self, event):
+        if event.mimeData().hasImage():
+            event.accept()
+        else:
+            event.ignore()
+
+    def dropEvent(self, event: PyQt6.QtGui.QMouseEvent):
+        if not event.source().geometry().contains(event.position().toPoint()):
+            source = self.get_index(event.position().toPoint())
+            if source is None:
+                return
+
+            i, j = max(self.target, source), min(self.target, source)
+            p1, p2 = self.gridLayout.getItemPosition(i), self.gridLayout.getItemPosition(j)
+
+            self.gridLayout.addItem(self.gridLayout.takeAt(i), *p2)
+            self.gridLayout.addItem(self.gridLayout.takeAt(j), *p1)
 
 
 
-class Autocomplete(QComboBox):
-    def __init__(self, parent, items):
-        super(Autocomplete, self).__init__(parent)
-        self.items = items
-        self.init()
-
-    def init(self):
-        self.setEditable(True)
-        self.setDuplicatesEnabled(False)
-        self.setAutocompletion(self.items)
-        self.setInsertPolicy(QComboBox.InsertPolicy.NoInsert)
-
-    def setAutocompletion(self, items):
-        word_set = set(items)
-        completer = QCompleter(word_set)
-        completer.setCaseSensitivity(QtCore.Qt.CaseSensitivity.CaseInsensitive)
-        self.setCompleter(completer)
-
-
-class Widget(QWidget):
-    """docstring for Widget"""
-    def __init__(self, items, parent=None, fixed=True, allow_duplicates=True):
-        super(Widget, self).__init__()
-        self.items = items
-        self.checkbox = QCheckBox()
-        self.labelItemCounter = QLabel()
-        self.autocomplete = Autocomplete(self.items,
-            parent=self
-        )
-
-        self.layout = QHBoxLayout()
-        self.setLayout(self.layout)
-        self.layout.addWidget(self.checkbox)
-        self.layout.addWidget(self.autocomplete)
-        self.layout.addWidget(self.labelItemCounter)
-        self.labelItemCounter.setText(f'{self.autocomplete.count()}')
-        # self.checkbox.stateChanged.connect(lambda: self.tuneAutocompletion())
-        self.autocomplete.setAutocompletion(['Iron Man','Iron Man','Iron Man','Iron Man','Iron Man','Iron Man', 'hulk', 'Iron Man ', 'Captain America'])
-        self.autocomplete.update()
-
-    # def tuneAutocompletion(self):
-    #     if self.checkbox.isChecked():
-    #         self.autocomplete.setAutocompletion(self.items, True)
-    #     else:
-    #         self.autocomplete.setAutocompletion(self.items, False)
-
-    # def currentText(self):
-    #     return self.autocomplete.currentText()
-    #
-    # def currentIndex(self):
-    #     return self.autocomplete.currentIndex()
+def except_hook(cls, exception, traceback):
+    sys.__excepthook__(cls, exception, traceback)
 
 
 if __name__ == "__main__":
+    import sys
+    sys.excepthook = except_hook
     app = QApplication(sys.argv)
-    w = QWidget()
-    l = ['Captain America', 'Hulk', 'Iron Man', 'hulk', 'Iron Man ', 'Captain America']
-    cb = Widget(l, parent=w)
-    layout = QHBoxLayout()
-    layout.addWidget(cb)
-    w.setLayout(layout)
+    w = IndicSelectWindow()
     w.show()
     sys.exit(app.exec())

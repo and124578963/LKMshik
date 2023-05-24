@@ -3,7 +3,8 @@ from PyQt6.QtCore import QSize, Qt, QAbstractTableModel, QSortFilterProxyModel
 from PyQt6.QtGui import QIcon
 from PyQt6.QtWidgets import QWidget, QDialog, QFileDialog
 
-from component_card import ComponentCard, EditComponentCard, generate_color
+from common.ui_elements import generate_color
+from component_card import ComponentCard, EditComponentCard
 from settings import TABLE_DICT, get_category, PASSPORT, update_config_param
 from database import DB
 import pandas as pd
@@ -309,7 +310,9 @@ class DarkBtn_Ui(QtWidgets.QPushButton):
             "add_proj": ["images/add.png", "  Добавить проект"],
             "warehouse": ["images/warehouse.png", "  Мои компоненты"],
             "edit_proj": ["images/edit_proj.png", "  Изменить проект"],
+            "save_settings": ["images/edit_proj.png", "  Сохранить изменения"],
             "calc": ["images/calc.png", "  Рассчитать"],
+            "brish": ["images/brish.png", "  Указать"],
         }
         self.setSizeIncrement(QtCore.QSize(0, 0))
         self.setCursor(QtGui.QCursor(QtCore.Qt.CursorShape.PointingHandCursor))
@@ -441,6 +444,11 @@ class CustomTable(QtWidgets.QTableView):
         self.setAutoScroll(True)
         self.setObjectName("table")
         self.verticalHeader().hide()
+
+        self.setDragEnabled(True)
+        self.setDragDropMode(QtWidgets.QAbstractItemView.DragDropMode.InternalMove)
+        self.setDefaultDropAction(Qt.DropAction.MoveAction)
+
         self.setStyleSheet("""
 
                            QTableView{
@@ -464,6 +472,7 @@ class CustomTable(QtWidgets.QTableView):
         # self.setSizeAdjustPolicy(QtWidgets.QAbstractScrollArea.SizeAdjustPolicy.AdjustToContents)
         # self.setWordWrap(True)
         # self.horizontalHeader().setStretchLastSection(True)
+
 
 
 class CategoryButton(QtWidgets.QPushButton):

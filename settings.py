@@ -31,7 +31,7 @@ def get_suhoi_type():
         key = "suhoi_type"
         suhoi_type = mydict.get(key, None)
         if suhoi_type is None:
-            suhoi_type = 0
+            suhoi_type = "1"
         else:
             suhoi_type = Secrets().decrypt_data(suhoi_type).decode()
         return suhoi_type

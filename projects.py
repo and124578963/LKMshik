@@ -246,8 +246,6 @@ class Projects_Ui(object):
                 dialog.show()
 
 
-
-
 class CustomListItem(QtWidgets.QListView):
     def __init__(self, parent):
         super(CustomListItem, self).__init__(parent=parent)
