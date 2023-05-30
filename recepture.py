@@ -43,6 +43,8 @@ class ReceptureWindow(QtWidgets.QWidget):
         self.recepture_data.load_data()
         self.settings_window = None
         self.additive_window = None
+        self.hardener_window = None
+        self.recount_on_maslo_window = None
         self.list_comp_row_obj = []
         self.list_comp_2_row_obj = []
 
@@ -242,8 +244,8 @@ class ReceptureWindow(QtWidgets.QWidget):
         self.count_components_btn.setText("Расчет компонентов")
         menu = CustomMenu(self)
         menu.addAction('Расчет функц. добавок', lambda: self.open_count_additives())
-        menu.addAction('Расчет отвердителя', lambda: print(1))
-        menu.addAction('Заменить по маслоемкости', lambda: print(1))
+        menu.addAction('Расчет отвердителя', lambda: self.open_count_hardeners())
+        menu.addAction('Заменить по маслоемкости', lambda: self.open_recount_on_maslo())
         self.count_components_btn.setMenu(menu)
         lo.addWidget(self.count_components_btn)
 
@@ -735,6 +737,18 @@ class ReceptureWindow(QtWidgets.QWidget):
             self.additive_window = CountAdditiveWindow(self)
             self.additive_window.show()
 
+    def open_count_hardeners(self):
+        if self.hardener_window is None:
+            self.collect_rows_data()
+            self.hardener_window = CountHardenerWindow(self)
+            self.hardener_window.show()
+
+    def open_recount_on_maslo(self):
+        if self.recount_on_maslo_window is None:
+            self.collect_rows_data()
+            self.recount_on_maslo_window = RecountOnMaslo(self)
+            self.recount_on_maslo_window.show()
+
 
 class ComponentRow(QtWidgets.QFrame):
     def __init__(self, parent, _index, name="", amount="", callback_get_list_obj=None, callback_mass=None):
@@ -1122,7 +1136,6 @@ class Ui_Component(QtWidgets.QWidget):
             # self.gridLayout.addItem(self.gridLayout.takeAt(j), *p1)
             self.reset_row_number()
         Ui_Component.set_drop_false()
-
 
 
 class ExperimentRow:
@@ -1991,8 +2004,6 @@ class ReceptureSettings(QtWidgets.QWidget):
         self.destroy()
 
 
-
-
 class Component:
     db = DB()
 
@@ -2046,6 +2057,7 @@ class Pigments(Component):
         self.suhoi = Decimal("1")
         self.dry_mass = Decimal(mass.replace(",", "."))
 
+
 class Fillers(Component):
     def __init__(self, name, mass):
         super(Fillers, self).__init__(name, mass, 'Fillers')
@@ -2053,6 +2065,7 @@ class Fillers(Component):
         self.maslo = Decimal(self.db.get_info_reactive('Fillers', self.name, 'maslo')[0][0].replace(",", "."))
         self.suhoi = Decimal("1")
         self.dry_mass = Decimal(mass.replace(",", "."))
+
 
 class Films(Component):
     def __init__(self, name, mass):
@@ -2062,6 +2075,11 @@ class Films(Component):
         self.density = Decimal(self.db.get_info_reactive('Films', self.name, 'density')[0][0].replace(",", "."))
         self.density_solvent = Decimal(self.db.get_info_reactive('Films', self.name, 'density_solvent')[0][0].replace(",", "."))
         self.dry_mass = Decimal(mass.replace(",", ".")) * self.suhoi
+        func_groups = self.db.get_info_reactive('Films', self.name, 'func_groups')[0][0].replace(",", ".")
+        if func_groups in ["", "."]:
+            func_groups = "0"
+        self.func_groups = Decimal(func_groups)
+
 
 class Additives(Component):
     def __init__(self, name, mass):
@@ -2072,6 +2090,7 @@ class Additives(Component):
         self.type = self.db.get_info_reactive('Additives', self.name, 'type')[0][0]
         self.density_solvent = Decimal(self.db.get_info_reactive('Additives', self.name, 'density_solvent')[0][0].replace(",", "."))
         self.dry_mass = Decimal(mass.replace(",", ".")) * self.suhoi
+
 
 class Pigmpasts(Component):
     def __init__(self, name, mass):
@@ -2087,6 +2106,7 @@ class Pigmpasts(Component):
         self.density_solvent = Decimal(self.db.get_info_reactive('Pigmpast', self.name, 'density_solvent')[0][0].replace(",", "."))
         self.dry_mass = Decimal(mass.replace(",", ".")) * self.suhoi
 
+
 class Hardeners(Component):
     def __init__(self, name, mass):
         super(Hardeners, self).__init__(name, mass, 'Hardener')
@@ -2101,6 +2121,7 @@ class Hardeners(Component):
             self.mass_for_params = Decimal('0')  # для расчета окп кокп СП
         self.density_solvent = Decimal(self.db.get_info_reactive('Hardener', self.name, 'density_solvent')[0][0].replace(",", "."))
         self.dry_mass = Decimal(mass.replace(",", ".")) * self.suhoi
+
 
 class CountAdditiveWindow(QtWidgets.QWidget):
     def __init__(self, parent: ReceptureWindow):
@@ -2367,6 +2388,412 @@ class CountAdditiveWindow(QtWidgets.QWidget):
 
     def clear(self):
         self.result_e.setText("")
+
+
+class CountHardenerWindow(QtWidgets.QWidget):
+    def __init__(self, parent: ReceptureWindow):
+        super(CountHardenerWindow, self).__init__()
+        self.recepture = parent
+        self.first_row = 2
+        self.list_checkbox = []
+
+        list_components = self.recepture.recepture_data.get_components_obj()
+        self.list_components = list(filter(lambda x:  isinstance(x, Films), list_components))
+        self.additive_obj = None
+        self.db = DB()
+        self.type = None
+
+        self.setObjectName("CountAdditiveWindow")
+        self.setStyleSheet("""
+        QWidget#CountAdditiveWindow{
+        background: #f9f9f9;
+        }
+        """)
+
+        self.resize(537, 366)
+        self.horizontalLayout = QtWidgets.QHBoxLayout(self)
+        self.horizontalLayout.setObjectName("horizontalLayout")
+        self.list_comp_w = QtWidgets.QWidget(parent=self)
+        self.list_comp_w.setObjectName("list_comp_w")
+        self.gridLayout = QtWidgets.QGridLayout(self.list_comp_w)
+        self.gridLayout.setObjectName("gridLayout")
+
+        self.check_l = QtWidgets.QLabel(parent=self.list_comp_w)
+        self.gridLayout.addWidget(self.check_l, 1, 0, 1, 1)
+        self.mass_l = QtWidgets.QLabel(parent=self.list_comp_w)
+        self.gridLayout.addWidget(self.mass_l, 1, 1, 1, 1)
+
+        self.comp_l = QtWidgets.QLabel(parent=self.list_comp_w)
+        self.gridLayout.addWidget(self.comp_l, 0, 0, 1, 2)
+
+        self.dry_mass_l = QtWidgets.QLabel(parent=self.list_comp_w)
+        self.dry_mass_l.setObjectName("dry_mass_l")
+        self.gridLayout.addWidget(self.dry_mass_l, 1, 2, 1, 1)
+
+        for obj in self.list_components:
+            self.add_row_component(obj)
+
+        spacerItem = QtWidgets.QSpacerItem(20, 40, QtWidgets.QSizePolicy.Policy.Minimum,
+                                           QtWidgets.QSizePolicy.Policy.Expanding)
+        self.gridLayout.addItem(spacerItem, self.first_row, 1, 1, 1)
+        self.horizontalLayout.addWidget(self.list_comp_w)
+
+# right part:
+        self.count_w = QtWidgets.QWidget(parent=self)
+        self.gridLayout_2 = QtWidgets.QGridLayout(self.count_w)
+        self.gridLayout_2.setVerticalSpacing(2)
+
+        self.list_all_names = self.db.load_reactives("Hardener", "name")
+        self.list_all_names = list(map(lambda x: x[0], self.list_all_names))
+        self.component_e = SearchCombobox(self, self.list_all_names)
+        self.component_e.setMinimumSize(QtCore.QSize(250, 0))
+        self.component_e.textChanged.connect(self.name_changed)
+        self.gridLayout_2.addWidget(self.component_e, 1, 0, 1, 4)
+
+        self.info = QtWidgets.QLabel(parent=self.count_w)
+        self.gridLayout_2.addWidget(self.info, 4, 0, 1, 5)
+
+        self.const_w = QtWidgets.QWidget(parent=self.count_w)
+        tooltip = """Значения k: 
+        \nk=1-1,4 - полиамины
+        \nk=0,8-0,9 - ароматические изоцианаты
+        \nk=1,05-1,15 - алифатические изоцианаты
+        \nk=1 - смесевые изоцианаты
+        """
+        lo = QtWidgets.QHBoxLayout(self.const_w)
+        lo.setContentsMargins(0,0,0,0)
+        const_l = QtWidgets.QLabel(self.const_w)
+        const_l.setText("Поправочный коэффициент k:")
+        const_l.setToolTip(tooltip)
+        lo.addWidget(const_l)
+        self.const_e = CustomEntry(self.const_w, padding=False)
+        self.const_e.setMaximumSize(50, 22)
+        self.const_e.setValidator(get_numeric_validator())
+        self.const_e.setToolTip(tooltip)
+        lo.addWidget(self.const_e)
+        spacerItem1 = QtWidgets.QSpacerItem(20, 40, QtWidgets.QSizePolicy.Policy.Expanding,
+                                            QtWidgets.QSizePolicy.Policy.Minimum)
+        lo.addItem(spacerItem1)
+        self.gridLayout_2.addWidget(self.const_w, 6, 0, 1, 4)
+
+
+        equivalent_w = QtWidgets.QWidget(parent=self.count_w)
+        lo = QtWidgets.QHBoxLayout(equivalent_w)
+        lo.setContentsMargins(0, 0, 0, 0)
+        equivalent_l = QtWidgets.QLabel(parent=equivalent_w)
+        equivalent_l.setText("Эквивалентная масса, г/экв:")
+        lo.addWidget(equivalent_l)
+        self.equivalent_e = CustomEntry(equivalent_w, padding=False)
+        self.equivalent_e.setMaximumSize(50, 22)
+        self.equivalent_e.setValidator(get_numeric_validator())
+        lo.addWidget(self.equivalent_e)
+
+        count_new_b = ColorButton(parent=equivalent_w, color="blue")
+        count_new_b.clicked.connect(lambda: self.count())
+        count_new_b.setText("Рассчитать")
+        lo.addWidget(count_new_b)
+        spacerItem1 = QtWidgets.QSpacerItem(20, 40, QtWidgets.QSizePolicy.Policy.Expanding,
+                                            QtWidgets.QSizePolicy.Policy.Minimum)
+        lo.addItem(spacerItem1)
+        self.gridLayout_2.addWidget(equivalent_w, 7, 0, 1, 4)
+
+        result_w = QtWidgets.QWidget(parent=self.count_w)
+        lo = QtWidgets.QHBoxLayout(result_w)
+        lo.setContentsMargins(0, 0, 0, 0)
+        result_l = QtWidgets.QLabel(parent=result_w)
+        result_l.setText("Результат:")
+        lo.addWidget(result_l)
+        self.result_e = CustomEntry(self.count_w, padding=False)
+        self.result_e.setMaximumSize(50, 22)
+        self.result_e.setReadOnly(True)
+        lo.addWidget(self.result_e)
+        add_count_b = ColorButton(parent=result_w, color="blue")
+        add_count_b.setText("Очистить")
+        add_count_b.clicked.connect(lambda: self.clear())
+        lo.addWidget(add_count_b)
+        spacerItem1 = QtWidgets.QSpacerItem(20, 40, QtWidgets.QSizePolicy.Policy.Expanding,
+                                            QtWidgets.QSizePolicy.Policy.Minimum)
+        lo.addItem(spacerItem1)
+        self.gridLayout_2.addWidget(result_w, 9, 0, 1, 1)
+
+        self.additive_name_l = QtWidgets.QLabel(parent=self.count_w)
+        self.gridLayout_2.addWidget(self.additive_name_l, 0, 0, 1, 4)
+        self.info_l = QtWidgets.QLabel(parent=self.count_w)
+        self.gridLayout_2.addWidget(self.info_l, 2, 0, 1, 3)
+
+        spacerItem1 = QtWidgets.QSpacerItem(20, 40, QtWidgets.QSizePolicy.Policy.Minimum,
+                                            QtWidgets.QSizePolicy.Policy.Expanding)
+        self.gridLayout_2.addItem(spacerItem1, 4, 0, 1, 1)
+        self.horizontalLayout.addWidget(self.count_w)
+
+        self.setWindowTitle("Расчет отвердителей")
+
+        self.check_l.setText("Учитывать")
+        self.mass_l.setText("Масса")
+        self.comp_l.setText("Пленкообразователи")
+        font = QtGui.QFont()
+        font.setPointSize(12)
+        self.comp_l.setFont(font)
+
+        self.dry_mass_l.setText("м.н.в.")
+
+        self.additive_name_l.setText("Отвердитель:")
+        self.additive_name_l.setFont(font)
+        self.info_l.setText("Информация об эквивалентных массах:")
+
+    def closeEvent(self, event):
+        self.recepture.hardener_window = None
+
+    def add_row_component(self, comp_obj: Component):
+        component_chek = QtWidgets.QCheckBox(parent=self.list_comp_w)
+        component_chek.user_data = comp_obj
+        self.list_checkbox.append(component_chek)
+        component_chek.setText(comp_obj.name)
+
+        self.gridLayout.addWidget(component_chek, self.first_row, 0, 1, 1)
+
+        mass = QtWidgets.QLabel(parent=self.list_comp_w)
+        mass.setText(normalize_number(comp_obj.mass))
+        self.gridLayout.addWidget(mass, self.first_row, 1, 1, 1)
+
+        dry_mass = QtWidgets.QLabel(parent=self.list_comp_w)
+        dry_mass.setText(normalize_number(comp_obj.dry_mass))
+        self.gridLayout.addWidget(dry_mass, self.first_row, 2, 1, 1)
+
+        self.first_row += 1
+
+    def name_changed(self, text):
+        if text in self.list_all_names:
+            self.hardener_obj = Hardeners(text, "0")
+            info = self.hardener_obj.func_groups
+            self.info.setText(info)
+        else:
+            self.hardener_obj = None
+            self.info.setText("")
+            self.clear()
+
+    def count(self):
+        if self.hardener_obj is not None:
+            self.count_hardener()
+        else:
+            InfoWindow("Укажите название имеющегося отвердителя").exec()
+
+    def collect_film_obj(self) -> List:
+        checkbox: QtWidgets.QCheckBox
+        list_obj = []
+        for checkbox in self.list_checkbox:
+            if checkbox.isChecked():
+                comp_obj: Films = checkbox.user_data
+                list_obj.append(comp_obj)
+        return list_obj
+
+    def count_hardener(self):
+        list_film_obj = self.collect_film_obj()
+        result = Decimal("0")
+
+        equivalent = self.equivalent_e.text().replace(",", ".")
+        if equivalent.strip() in ["", "."]:
+            equivalent = "0"
+        equivalent = Decimal(equivalent)
+
+        const = self.const_e.text().replace(",", ".")
+        if const.strip() in ["", "."]:
+            const = "0"
+        const = Decimal(const)
+        error_components = ""
+        for film in list_film_obj:
+            film: Films
+            try:
+                result += const * film.dry_mass * equivalent / (film.func_groups * self.hardener_obj.suhoi)
+            except Exception:
+                error_components += f"{film.name}\n"
+
+        if len(error_components) > 1:
+            InfoWindow("Ошибка в расчетах! \nПроверьте в базе наличие функциональных групп \nу следующих компонентов:\n"
+                       f"{error_components}"
+                       f"И м.д.н.в. у {self.hardener_obj.name}").exec()
+
+        old = self.result_e.text().replace(",", ".")
+        if old.strip() in ["", "."]:
+            old = "0"
+        old = Decimal(old)
+        result += old
+
+        result = normalize_number(result)
+        self.result_e.setText(result)
+
+    def clear(self):
+        self.result_e.setText("")
+
+
+class RecountOnMaslo(QtWidgets.QWidget):
+    def __init__(self, parent: ReceptureWindow):
+        super(RecountOnMaslo, self).__init__()
+        self.recepture = parent
+        self.first_row = 2
+        self.list_checkbox = []
+
+        list_components = self.recepture.recepture_data.get_components_obj()
+        self.list_components = list(filter(lambda x:  isinstance(x, (Pigments, Fillers)), list_components))
+        self.additive_obj = None
+        self.db = DB()
+        self.type = None
+
+        self.setObjectName("CountAdditiveWindow")
+        self.setStyleSheet("""
+        QWidget#CountAdditiveWindow{
+        background: #f9f9f9;
+        }
+        """)
+
+        self.resize(537, 366)
+        self.horizontalLayout = QtWidgets.QHBoxLayout(self)
+        self.horizontalLayout.setObjectName("horizontalLayout")
+        self.list_comp_w = QtWidgets.QWidget(parent=self)
+        self.list_comp_w.setObjectName("list_comp_w")
+        self.gridLayout = QtWidgets.QGridLayout(self.list_comp_w)
+        self.gridLayout.setObjectName("gridLayout")
+
+        self.check_l = QtWidgets.QLabel(parent=self.list_comp_w)
+        self.gridLayout.addWidget(self.check_l, 1, 0, 1, 1)
+        self.mass_l = QtWidgets.QLabel(parent=self.list_comp_w)
+        self.gridLayout.addWidget(self.mass_l, 1, 1, 1, 1)
+
+        self.comp_l = QtWidgets.QLabel(parent=self.list_comp_w)
+        self.gridLayout.addWidget(self.comp_l, 0, 0, 1, 2)
+
+        self.dry_mass_l = QtWidgets.QLabel(parent=self.list_comp_w)
+        self.dry_mass_l.setObjectName("dry_mass_l")
+        self.gridLayout.addWidget(self.dry_mass_l, 1, 2, 1, 1)
+
+        for obj in self.list_components:
+            self.add_row_component(obj)
+
+        spacerItem = QtWidgets.QSpacerItem(20, 40, QtWidgets.QSizePolicy.Policy.Minimum,
+                                           QtWidgets.QSizePolicy.Policy.Expanding)
+        self.gridLayout.addItem(spacerItem, self.first_row, 1, 1, 1)
+        self.horizontalLayout.addWidget(self.list_comp_w)
+
+# right part:
+        self.count_w = QtWidgets.QWidget(parent=self)
+        self.gridLayout_2 = QtWidgets.QGridLayout(self.count_w)
+        self.gridLayout_2.setVerticalSpacing(2)
+
+        self.list_all_pigments = self.db.load_reactives("Pigments", "name")
+        self.list_all_pigments = list(map(lambda x: x[0], self.list_all_pigments))
+        self.list_all_fillers = self.db.load_reactives("Fillers", "name")
+        self.list_all_fillers = list(map(lambda x: x[0], self.list_all_fillers))
+        list_all_names = self.list_all_pigments + self.list_all_fillers
+        self.component_e = SearchCombobox(self, list_all_names)
+        self.component_e.setMinimumSize(QtCore.QSize(250, 0))
+        self.component_e.textChanged.connect(self.name_changed)
+        self.gridLayout_2.addWidget(self.component_e, 1, 0, 1, 4)
+
+        result_w = QtWidgets.QWidget(parent=self.count_w)
+        lo = QtWidgets.QHBoxLayout(result_w)
+        lo.setContentsMargins(0, 0, 0, 0)
+        result_l = QtWidgets.QLabel(parent=result_w)
+        result_l.setText("Результат:")
+        lo.addWidget(result_l)
+        self.result_e = CustomEntry(self.count_w, padding=False)
+        self.result_e.setMaximumSize(50, 22)
+        self.result_e.setReadOnly(True)
+        lo.addWidget(self.result_e)
+        count_new_b = ColorButton(parent=result_w, color="blue")
+        count_new_b.clicked.connect(lambda: self.count())
+        count_new_b.setText("Рассчитать")
+        lo.addWidget(count_new_b)
+        spacerItem1 = QtWidgets.QSpacerItem(20, 40, QtWidgets.QSizePolicy.Policy.Expanding,
+                                            QtWidgets.QSizePolicy.Policy.Minimum)
+        lo.addItem(spacerItem1)
+        self.gridLayout_2.addWidget(result_w, 9, 0, 1, 1)
+
+        self.additive_name_l = QtWidgets.QLabel(parent=self.count_w)
+        self.gridLayout_2.addWidget(self.additive_name_l, 0, 0, 1, 4)
+        self.info_l = QtWidgets.QLabel(parent=self.count_w)
+        self.gridLayout_2.addWidget(self.info_l, 2, 0, 1, 3)
+
+        spacerItem1 = QtWidgets.QSpacerItem(20, 40, QtWidgets.QSizePolicy.Policy.Minimum,
+                                            QtWidgets.QSizePolicy.Policy.Expanding)
+        self.gridLayout_2.addItem(spacerItem1, 4, 0, 1, 1)
+        self.horizontalLayout.addWidget(self.count_w)
+
+        self.setWindowTitle("Замена по маслоемкости")
+
+        self.check_l.setText("Учитывать")
+        self.mass_l.setText("Масса")
+        self.comp_l.setText("Компоненты")
+        font = QtGui.QFont()
+        font.setPointSize(12)
+        self.comp_l.setFont(font)
+
+        self.additive_name_l.setText("Заменить на:")
+        self.additive_name_l.setFont(font)
+
+    def closeEvent(self, event):
+        self.recepture.recount_on_maslo_window = None
+
+    def add_row_component(self, comp_obj: Component):
+        component_chek = QtWidgets.QCheckBox(parent=self.list_comp_w)
+        component_chek.user_data = comp_obj
+        self.list_checkbox.append(component_chek)
+        component_chek.setText(comp_obj.name)
+
+        self.gridLayout.addWidget(component_chek, self.first_row, 0, 1, 1)
+
+        mass = QtWidgets.QLabel(parent=self.list_comp_w)
+        mass.setText(normalize_number(comp_obj.mass))
+        self.gridLayout.addWidget(mass, self.first_row, 1, 1, 1)
+
+        self.first_row += 1
+
+    def name_changed(self, text):
+        if text in self.list_all_pigments:
+            self.new_comp_obj = Pigments(text, "0")
+        elif text in self.list_all_fillers:
+            self.new_comp_obj = Fillers(text, "0")
+        else:
+            self.new_comp_obj = None
+            self.clear()
+
+    def count(self):
+        if self.new_comp_obj is not None:
+            self.recount_on_maslo()
+        else:
+            InfoWindow("Укажите название имеющегося компонента").exec()
+
+    def collect_comp_obj(self) -> List:
+        checkbox: QtWidgets.QCheckBox
+        list_obj = []
+        for checkbox in self.list_checkbox:
+            if checkbox.isChecked():
+                comp_obj: Fillers or Pigments = checkbox.user_data
+                list_obj.append(comp_obj)
+        return list_obj
+
+    def recount_on_maslo(self):
+        list_comp_obj = self.collect_comp_obj()
+        result = Decimal("0")
+
+        error_f = False
+        for component in list_comp_obj:
+            component: Fillers or Pigments
+            try:
+                result += component.mass * component.maslo / self.new_comp_obj.maslo
+            except Exception:
+                error_f = True
+
+        if error_f:
+            InfoWindow("Ошибка в расчетах! \nПроверьте в базе правильность маслоемкости \n"
+                       f"у{self.new_comp_obj.name}").exec()
+
+        result = normalize_number(result)
+        self.result_e.setText(result)
+
+    def clear(self):
+        self.result_e.setText("")
+
+
 
 
 def normalize_number(number: Decimal) -> str:
