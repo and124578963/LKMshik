@@ -15,7 +15,7 @@ from sqlitedict import SqliteDict
 from common.secrets import Secrets
 from common.ui_elements import HoverableButton, MenuButton, ColorButton, CustomMenu, CustomRadioBtn, generate_color, \
     CustomListItem, generate_font, MplCanvas, delete_chield, create_w_lo, normalize_number, get_numeric_validator, \
-    insert_w_lo, get_h_spacer, get_v_spacer
+    insert_w_lo, get_h_spacer, get_v_spacer, change_position_window
 from component_card import CustomEntry, CustomCombobox
 from database import DB
 from typing import List, Tuple
@@ -44,6 +44,7 @@ class ReceptureWindow(QtWidgets.QWidget):
         self.recount_on_maslo_window = None
         self.count_recepture_constant = None
         self.count_recepture_combo = None
+        self.philum_window = None
         self.list_comp_row_obj = []
         self.list_comp_2_row_obj = []
 
@@ -257,7 +258,7 @@ class ReceptureWindow(QtWidgets.QWidget):
         self.others = ColorButton(w,  "blue")
         self.others.setText("Разное")
         menu = CustomMenu(self)
-        menu.addAction('Филумы пигментов', lambda: print(1))
+        menu.addAction('Филумы пигментов', lambda: self.open_philums())
         self.others.setMenu(menu)
         lo.addWidget(self.others)
 
@@ -754,6 +755,10 @@ class ReceptureWindow(QtWidgets.QWidget):
             self.count_recepture_combo = CountReceptureCombo(self)
             self.count_recepture_combo.show()
 
+    def open_philums(self):
+        if self.philum_window is None:
+            self.philum_window = PhilumWindow(self)
+            self.philum_window.show()
 
 class ComponentRow(QtWidgets.QFrame):
     def __init__(self, parent, _index, name="", amount="", callback_get_list_obj=None, callback_mass=None):
@@ -2820,18 +2825,26 @@ class CountReceptureConstant(QtWidgets.QWidget):
         self.horizontalLayout = QtWidgets.QHBoxLayout(self)
         self.horizontalLayout.setContentsMargins(0, 0, 0, 0)
         self.horizontalLayout.setSpacing(0)
+        self.setObjectName("CountRecepture")
+        self.setStyleSheet("""
+        QWidget#CountRecepture{
+        background: #f9f9f9;
+        }
+        """)
 
         self.list_curve_w = QtWidgets.QWidget(parent=self)
         self.list_curve_w.setMaximumSize(QtCore.QSize(300, 16777215))
-        self.list_curve_w.setMinimumSize(QtCore.QSize(200, 16777215))
+        self.list_curve_w.setMinimumSize(QtCore.QSize(250, 16777215))
         self.list_curve_w.setObjectName("ListCurveW")
         self.list_curve_w.setStyleSheet("""
         QWidget#ListCurveW{
         background: white;
+         border-right: 2px solid #eee;
         }
         """)
+
         self.verticalLayout = QtWidgets.QVBoxLayout(self.list_curve_w)
-        self.verticalLayout.setContentsMargins(0, 5, 0, 0)
+        self.verticalLayout.setContentsMargins(0, 5, 2, 0)
         self.verticalLayout.setSpacing(2)
         label = QtWidgets.QLabel(self.list_curve_w)
         label.setText("Тарировочные кривые")
@@ -2855,20 +2868,28 @@ class CountReceptureConstant(QtWidgets.QWidget):
         self.plot = MplCanvas(self.plot_w)
         self.plot.mpl_connect('button_press_event', self.onclick)
         self.verticalLayout_2.addWidget(self.plot)
+        self.verticalLayout_2.addItem(get_v_spacer())
         self.horizontalLayout.addWidget(self.plot_w)
 
+
         self.result_w = QtWidgets.QWidget(parent=self)
+        self.result_w.setObjectName("ResultW")
+        self.result_w.setStyleSheet("""
+        QWidget#ResultW{
+        border-left: 2px solid #eee;
+        }
+        """)
         self.result_w.setMinimumSize(QtCore.QSize(200, 16777215))
         self.verticalLayout_3 = QtWidgets.QVBoxLayout(self.result_w)
         label = QtWidgets.QLabel(self.result_w)
         label.setText("Результат")
         label.setFont(generate_font(12, bold=True))
         self.verticalLayout_3.addWidget(label, alignment=QtCore.Qt.AlignmentFlag.AlignCenter)
-        self.widget_5 = QtWidgets.QWidget(parent=self.result_w)
-        self.verticalLayout_3.addWidget(self.widget_5)
         self.verticalLayout_3.addItem(get_v_spacer())
 
         self.horizontalLayout.addWidget(self.result_w)
+
+        change_position_window(self, x=-100)
 
     def closeEvent(self, event):
         self.recepture.count_recepture_constant = None
@@ -3044,7 +3065,7 @@ class CountReceptureConstant(QtWidgets.QWidget):
             w, lo = create_w_lo(self.result_w, self.verticalLayout_3)
             label = QtWidgets.QLabel(w)
             label.setText('Если есть готовый образец исходной рецептуры,\n'
-                          'то вы можете добавить на 100г к ней:')
+                          'то вы можете на 100г рецептуры добавить:')
             lo.addWidget(label)
 
             converted_list_add_mass_film = list(map(normalize_number, list_add_mass_film))
@@ -3068,6 +3089,7 @@ class CountReceptureConstant(QtWidgets.QWidget):
 class CountReceptureCombo(CountReceptureConstant):
     def __init__(self, parent: ReceptureWindow):
         super(CountReceptureCombo, self).__init__(parent)
+        self.setWindowTitle("Комбинированный расчет рецептуры")
         label = QtWidgets.QLabel(self.plot_w)
         label.setText("Укажите характеристики")
         label.setFont(generate_font(12, bold=True))
@@ -3226,3 +3248,79 @@ class CountReceptureCombo(CountReceptureConstant):
             lo.addWidget(result_e)
 
         self.verticalLayout_3.addItem(get_v_spacer())
+
+
+class PhilumWindow(QtWidgets.QWidget):
+    def __init__(self, parent: ReceptureWindow):
+        super(PhilumWindow, self).__init__()
+        self.recepture = parent
+        self.setMinimumSize(400, 400)
+        self.setWindowTitle("Справочные филумы компонентов")
+        self.horizontalLayout = QtWidgets.QHBoxLayout(self)
+        self.horizontalLayout.setContentsMargins(0, 0, 0, 0)
+        self.horizontalLayout.setSpacing(0)
+        self.setObjectName("CountRecepture")
+        self.setStyleSheet("""
+                QWidget#CountRecepture{
+                background: #f9f9f9;
+                }
+                """)
+        self.philum_area = QtWidgets.QTextEdit(parent=self)
+        self.horizontalLayout.addWidget(self.philum_area)
+        self.philum_area.setReadOnly(True)
+        self.list_name = ['1.Красный и чёрный железоокисные ', '2.Окись хрома пигментная ',
+                          '3.Сурик железный (высший сорт)', '4.Свинцовая зелень', '5.Титанат хрома дегидратированный',
+                          '6.Жёлтый железо-цинковый ', '7.Кадмиевый жёлтый (импорт)',
+                          '8.Коричневый на основе оксида кобальта', '9.Сажа термическая', '10.Крон свинцовый оранжевый',
+                          '11.Крон свинцовый жёлтый(лимонный)', '12.Коричневый железоокисный ',
+                          '13.Охра красная натуральная', '14.Железная лазурь (милори)', '15.Ртутно-кадмиевый красный',
+                          '16.Титанат кобальта зелёный', '17.Сажа ламповая', '18.Кадмиевый красный (импорт)',
+                          '19.Диоксид титана рутил (импорт)', '20.Жёлтый железоокисный',
+                          '21.Умбра натуральная тёмно-коричневая', '22.Мумия природная железоокисная',
+                          '23.Крон свинцовый молибдатный', '24.Киноварь', '25.Кобальт зелёный',
+                          '26.Органический красный С', '27.Фталоцианин. голубой 2 «З»У / ПАП-1', '28.Кадмий оранжевый',
+                          '29.Марганцевая коричневая', '30.Зелёный органический', '31.Сажа канальная',
+                          '32.Венецианская и индийск. красные жел.ок', '33.Сиена жжёная', '34.Бордо СМ',
+                          '35.Фталоцианиновый зелёный', '36.Феодосийская коричневая',
+                          '37.Алый лакокрасочный имп./отеч.', '38.Титано-кобальто-алюминиевый синий',
+                          '39.Титанат никеля жёлтый', '40.Марганцевый фиолетовый', '41.Синий антрахиноновый ОА',
+                          '42.Лак красный 2СМ', '43.Диоксид титана анатаз', '44.Хром-кобальт зелёно-голубой',
+                          '45.Силикохромат свинца', '46.Умбра жжёная', '47.Сажа ацетиленовая',
+                          '48.Фиолетовый хинакридоновый', '49.Ярко-оранжевый антрахиноновый К',
+                          '50.Мумия бокситная жёлтая', '51.Церулеум (небесно-голубой)',
+                          '52.Охра жёлтая тёмная натуральная', '53.Кобальт фиолетовый тёмный', '54.Бордо К',
+                          '55.Хромат стронция', '56.Ярко-оранжевый антрахиноновый', '57.Марганцовая голубая',
+                          '58.Хромат бария', '59.Литопон (ZnS + BaSO4)', '60.Цинковые белила',
+                          '61.Фталоцианин. голубой / красный 5с', '62.Охра красная прокалённая',
+                          '63.Кассельская прокалённая', '64.Охра коричневая', '65.Карбонатные свинцовые белила',
+                          '66.Умбра натуральная светлая', '67.Марс коричневый тёмный', '68.Охра жёлтая средняя',
+                          '69.Охра жёлтая золотистая', '70.Марс коричневый светлый', '71.Охра жёлтая светлая',
+                          '72.Мумия глинистая красная', '73.Архангельская коричневая', '74.Хромат бария-калия',
+                          '75.Титанат хрома гидратированный', '76.Органический жёлтый 2 «З»У',
+                          '77.Органический жёлтый светопрочный', '78.Основной хромат цинка-калия',
+                          '79.Оранжевый органическ. с наполнителем', '80.Тетраоксихромат свинца',
+                          '81.Марс жёлтый прозрачный', '82.Волконскоитовая зелёная', '83.Изумрудная зелень',
+                          '84.Цинковый крон', '85.Минеральная коричневая светлая', '86.Минеральная коричневая тёмная',
+                          '87.Кобальт синий', '88.Стронциановая жёлтая', '89.Синий силикат кобальта-цинка',
+                          '90.Ультрамарин фиолетовый', '91.Ультрамарин синий', '92.Кобальт фиолетовый светлый',
+                          '93.Мел (наполнитель)']
+        self.list_value = ['1,2-2,8', '1,5-2,8', '1,5-5,0', '1,6-4,8', '1,9-3,5', '2,4-5,0', '2,4-8,1', '2,5-4,2',
+                           '2,5-4,4', '2,7-5,4', '2,7-15,0', '3', '3,0-5,0', '3,0-7,2', '3,0-7,5', '3,6-7,5', '4-4,8',
+                           '4-5,5', '4-7', '4,2-14,0', '4,4-22,5', '4,5-9,1', '4.8', '5', '5-12', '5,5-7,7', '5,6/5,6',
+                           '5,6-16,2', '5,6-18', '6', '6', '6,0-9,0', '6,0-14,0', '6.4', '6.6', '6.6', '6,6-8,0/9,5',
+                           '6,6-13,2', '6,84-8,0', '6,8-13,5', '7', '7', '7-10', '7,0-11,25', '7,15-9,0', '7,2-13,8',
+                           '7.5', '7.68', '8.4', '8,4-10,8', '9,0-14,0', '9,0-18,0', '9,75-26,3', '10.5', '10,5-22,5',
+                           '11', '11,2-14,4', '12-21,6', '12,1-21,0', '13,2-22,4', '13,5 / 13,6', '13,8-16,3', '14-28',
+                           '14-30', '14,4-24,0', '15-20', '15-26,4', '15-28', '16,0-32,5', '16,3-28', '16,3-36',
+                           '16,5-29,6', '17,5-35', '18-27', '18,2-35,1', '20', '20.4', '20-32,5', '20.8', '20-42',
+                           '20-90', '22,5-37,5', '27,8-31,5', '24-126', '26-32', '30-36', '30-54', '30,1-42,3', '35-56',
+                           '35-55', '35-60', '96-170', '120']
+        philum_str = ""
+        for name, value in zip(self.list_name, self.list_value):
+            philum_str+= f"{name}: {value}\n"
+
+        self.philum_area.setText(philum_str)
+
+    def closeEvent(self, event):
+        self.recepture.philum_window = None
+
