@@ -1,8 +1,11 @@
 import copy
 import logging
+import os
+from collections import Counter
 from decimal import Decimal
 from functools import reduce
 
+import numpy as np
 from PyQt6 import QtCore, QtGui, QtWidgets
 from PyQt6.QtCore import Qt, QRegularExpression, QSize
 from PyQt6.QtGui import QRegularExpressionValidator
@@ -10,7 +13,9 @@ from PyQt6.QtWidgets import QCompleter
 from sqlitedict import SqliteDict
 
 from common.secrets import Secrets
-from common.ui_elements import HoverableButton, MenuButton, ColorButton, CustomMenu, CustomRadioBtn, generate_color
+from common.ui_elements import HoverableButton, MenuButton, ColorButton, CustomMenu, CustomRadioBtn, generate_color, \
+    CustomListItem, generate_font, MplCanvas, delete_chield, create_w_lo, normalize_number, get_numeric_validator, \
+    insert_w_lo, get_h_spacer, get_v_spacer
 from component_card import CustomEntry, CustomCombobox
 from database import DB
 from typing import List, Tuple
@@ -20,14 +25,6 @@ from newReactives import InfoWindow, DarkBtn_Ui
 from settings import get_suhoi_type, update_config_param
 
 
-def create_w_lo(parent_w: QtWidgets.QWidget, parent_lo: QtWidgets.QBoxLayout) -> \
-        Tuple[QtWidgets.QWidget, QtWidgets.QBoxLayout]:
-    w = QtWidgets.QWidget(parent=parent_w)
-    lo = QtWidgets.QHBoxLayout(w)
-    lo.setSpacing(5)
-    lo.setContentsMargins(0,0,0,0)
-    parent_lo.addWidget(w)
-    return w, lo
 
 
 class ReceptureWindow(QtWidgets.QWidget):
@@ -45,6 +42,8 @@ class ReceptureWindow(QtWidgets.QWidget):
         self.additive_window = None
         self.hardener_window = None
         self.recount_on_maslo_window = None
+        self.count_recepture_constant = None
+        self.count_recepture_combo = None
         self.list_comp_row_obj = []
         self.list_comp_2_row_obj = []
 
@@ -156,9 +155,7 @@ class ReceptureWindow(QtWidgets.QWidget):
         w, lo = create_w_lo(self.right_side, self.verticalLayout_6)
         self.count_params_l = QtWidgets.QLabel(parent=w)
         self.count_params_l.setText("Расчетные параметры")
-        font = QtGui.QFont()
-        font.setPointSize(12)
-        self.count_params_l.setFont(font)
+        self.count_params_l.setFont(generate_font(12))
         lo.addWidget(self.count_params_l)
         self.setting_count = HoverableButton(w, "settings", (16,16))
         self.setting_count.clicked.connect(lambda: self.open_r_settings())
@@ -234,9 +231,7 @@ class ReceptureWindow(QtWidgets.QWidget):
 
         l = QtWidgets.QLabel(parent=self.right_side)
         l.setText("Дополнительные функции")
-        font = QtGui.QFont()
-        font.setPointSize(11)
-        l.setFont(font)
+        l.setFont(generate_font(11))
         self.verticalLayout_6.addWidget(l,alignment=QtCore.Qt.AlignmentFlag.AlignLeft)
 
         w, lo = create_w_lo(self.right_side, self.verticalLayout_6)
@@ -253,8 +248,8 @@ class ReceptureWindow(QtWidgets.QWidget):
         self.count_new_recepture = ColorButton(w,  "blue")
         self.count_new_recepture.setText("Расчет рецептур")
         menu = CustomMenu(self)
-        menu.addAction('По константе наполнения', lambda: print(1))
-        menu.addAction('Комбинированный расчет', lambda: print(1))
+        menu.addAction('По константе наполнения', lambda: self.open_count_recepture_const())
+        menu.addAction('Комбинированный расчет', lambda: self.open_count_recepture_comb())
         self.count_new_recepture.setMenu(menu)
         lo.addWidget(self.count_new_recepture)
 
@@ -315,9 +310,7 @@ class ReceptureWindow(QtWidgets.QWidget):
 
         l = QtWidgets.QLabel(parent=self.exp_params_w)
         l.setText("Экспериментальные значения")
-        font = QtGui.QFont()
-        font.setPointSize(12)
-        l.setFont(font)
+        l.setFont(generate_font(12))
         self.gridLayout_2.addWidget(l, 0, 0, 1, 2)
 
         self.scrollArea_2 = QtWidgets.QScrollArea(parent=self.exp_params_w)
@@ -342,33 +335,25 @@ class ReceptureWindow(QtWidgets.QWidget):
         self.gridLayout_3.setVerticalSpacing(3)
         l = QtWidgets.QLabel(parent=self.exp_s_area)
         l.setText("Название")
-        font = QtGui.QFont()
-        font.setPointSize(10)
-        l.setFont(font)
+        l.setFont(generate_font(10))
         self.gridLayout_3.addWidget(l, 1, 0, 1, 1)
 
         l = QtWidgets.QLabel(parent=self.exp_s_area)
         l.setAlignment(QtCore.Qt.AlignmentFlag.AlignCenter)
         l.setText("Требуемое \n"  "значение")
-        font = QtGui.QFont()
-        font.setPointSize(10)
-        l.setFont(font)
+        l.setFont(generate_font(10))
         self.gridLayout_3.addWidget(l, 1, 1, 1, 1)
 
         l = QtWidgets.QLabel(parent=self.exp_s_area)
         l.setAlignment(QtCore.Qt.AlignmentFlag.AlignCenter)
         l.setText("Полученное \nзначение")
-        font = QtGui.QFont()
-        font.setPointSize(10)
-        l.setFont(font)
+        l.setFont(generate_font(10))
         self.gridLayout_3.addWidget(l, 1, 2, 1, 1)
 
         l = QtWidgets.QLabel(parent=self.exp_s_area)
         l.setAlignment(QtCore.Qt.AlignmentFlag.AlignCenter)
         l.setText("Успех")
-        font = QtGui.QFont()
-        font.setPointSize(10)
-        l.setFont(font)
+        l.setFont(generate_font(10))
         self.gridLayout_3.addWidget(l, 1, 3, 1, 3)
 
         for row in self.recepture_data.experiment_list:
@@ -393,9 +378,8 @@ class ReceptureWindow(QtWidgets.QWidget):
         self.gridLayout_4 = QtWidgets.QGridLayout(self.color_w)
 
         self.lable_name = QtWidgets.QLabel(parent=self.color_w)
-        font = QtGui.QFont()
-        font.setPointSize(12)
-        self.lable_name.setFont(font)
+
+        self.lable_name.setFont(generate_font(12))
         self.lable_name.setText("Цвет")
         self.gridLayout_4.addWidget(self.lable_name, 0, 0, 1, 1)
 
@@ -479,9 +463,7 @@ class ReceptureWindow(QtWidgets.QWidget):
         name_recepture.setContentsMargins(5,0,25,0)
         name_recepture.setText(self.name)
         horizontalLayout_3.addWidget(name_recepture)
-        font = QtGui.QFont()
-        font.setPointSize(18)
-        name_recepture.setFont(font)
+        name_recepture.setFont(generate_font(18))
         save_btn = HoverableButton(toolbar, "save", (20,20))
         horizontalLayout_3.addWidget(save_btn)
         save_as_btn = HoverableButton(toolbar, "save_as", (20,20))
@@ -748,6 +730,29 @@ class ReceptureWindow(QtWidgets.QWidget):
             self.collect_rows_data()
             self.recount_on_maslo_window = RecountOnMaslo(self)
             self.recount_on_maslo_window.show()
+
+    def open_count_recepture_const(self):
+        if self.count_recepture_constant is None:
+            self.collect_rows_data()
+            self.recepture_data.create_category_objs()
+            self.recepture_data.count_mass()
+            self.recepture_data.all_mass_for_suhoi_f()
+            self.recepture_data.all_suhoi_in_objects()
+            self.recepture_data.all_oil_in_objects()
+            self.count_recepture_constant = CountReceptureConstant(self)
+            self.count_recepture_constant.show()
+
+    def open_count_recepture_comb(self):
+        if self.count_recepture_combo is None:
+            self.collect_rows_data()
+            self.recepture_data.create_category_objs()
+            self.recepture_data.count_mass()
+            self.recepture_data.all_mass_for_suhoi_f()
+            self.recepture_data.all_suhoi_in_objects()
+            self.recepture_data.all_oil_in_objects()
+            self.recepture_data.all_hiding_in_objects()
+            self.count_recepture_combo = CountReceptureCombo(self)
+            self.count_recepture_combo.show()
 
 
 class ComponentRow(QtWidgets.QFrame):
@@ -2146,6 +2151,11 @@ class CountAdditiveWindow(QtWidgets.QWidget):
         self.horizontalLayout.setObjectName("horizontalLayout")
         self.list_comp_w = QtWidgets.QWidget(parent=self)
         self.list_comp_w.setObjectName("list_comp_w")
+        self.list_comp_w.setStyleSheet("""
+                QWidget#list_comp_w{
+                border-right: 2px solid #eee;
+                }
+                """)
         self.gridLayout = QtWidgets.QGridLayout(self.list_comp_w)
         self.gridLayout.setObjectName("gridLayout")
 
@@ -2260,14 +2270,13 @@ class CountAdditiveWindow(QtWidgets.QWidget):
         self.check_l.setText("Учитывать")
         self.mass_l.setText("Масса")
         self.comp_l.setText("Компоненты")
-        font = QtGui.QFont()
-        font.setPointSize(12)
-        self.comp_l.setFont(font)
+
+        self.comp_l.setFont(generate_font(12))
 
         self.dry_mass_l.setText("м.н.в.")
         self.dry_rb.setText("По массе нелетучих веществ")
         self.additive_name_l.setText("Функциональная добавка:")
-        self.additive_name_l.setFont(font)
+        self.additive_name_l.setFont(generate_font(12))
         self.info_l.setText("Информация о дозировке:")
         self.all_mass_rb.setText("По всей массе")
 
@@ -2415,6 +2424,11 @@ class CountHardenerWindow(QtWidgets.QWidget):
         self.horizontalLayout.setObjectName("horizontalLayout")
         self.list_comp_w = QtWidgets.QWidget(parent=self)
         self.list_comp_w.setObjectName("list_comp_w")
+        self.list_comp_w.setStyleSheet("""
+                QWidget#list_comp_w{
+                border-right: 2px solid #eee;
+                }
+                """)
         self.gridLayout = QtWidgets.QGridLayout(self.list_comp_w)
         self.gridLayout.setObjectName("gridLayout")
 
@@ -2531,14 +2545,13 @@ class CountHardenerWindow(QtWidgets.QWidget):
         self.check_l.setText("Учитывать")
         self.mass_l.setText("Масса")
         self.comp_l.setText("Пленкообразователи")
-        font = QtGui.QFont()
-        font.setPointSize(12)
-        self.comp_l.setFont(font)
+
+        self.comp_l.setFont(generate_font(12))
 
         self.dry_mass_l.setText("м.н.в.")
 
         self.additive_name_l.setText("Отвердитель:")
-        self.additive_name_l.setFont(font)
+        self.additive_name_l.setFont(generate_font(12))
         self.info_l.setText("Информация об эквивалентных массах:")
 
     def closeEvent(self, event):
@@ -2651,6 +2664,12 @@ class RecountOnMaslo(QtWidgets.QWidget):
         self.horizontalLayout.setObjectName("horizontalLayout")
         self.list_comp_w = QtWidgets.QWidget(parent=self)
         self.list_comp_w.setObjectName("list_comp_w")
+        self.list_comp_w.setStyleSheet("""
+        QWidget#list_comp_w{
+        border-right: 2px solid #eee;
+        }
+        """)
+
         self.gridLayout = QtWidgets.QGridLayout(self.list_comp_w)
         self.gridLayout.setObjectName("gridLayout")
 
@@ -2723,12 +2742,11 @@ class RecountOnMaslo(QtWidgets.QWidget):
         self.check_l.setText("Учитывать")
         self.mass_l.setText("Масса")
         self.comp_l.setText("Компоненты")
-        font = QtGui.QFont()
-        font.setPointSize(12)
-        self.comp_l.setFont(font)
+
+        self.comp_l.setFont(generate_font(12))
 
         self.additive_name_l.setText("Заменить на:")
-        self.additive_name_l.setFont(font)
+        self.additive_name_l.setFont(generate_font(12))
 
     def closeEvent(self, event):
         self.recepture.recount_on_maslo_window = None
@@ -2794,18 +2812,417 @@ class RecountOnMaslo(QtWidgets.QWidget):
         self.result_e.setText("")
 
 
+class CountReceptureConstant(QtWidgets.QWidget):
+    def __init__(self, parent: ReceptureWindow):
+        super(CountReceptureConstant, self).__init__()
+        self.setWindowTitle("Пересчет рецептуры по константе наполнения")
+        self.recepture = parent
+        self.horizontalLayout = QtWidgets.QHBoxLayout(self)
+        self.horizontalLayout.setContentsMargins(0, 0, 0, 0)
+        self.horizontalLayout.setSpacing(0)
+
+        self.list_curve_w = QtWidgets.QWidget(parent=self)
+        self.list_curve_w.setMaximumSize(QtCore.QSize(300, 16777215))
+        self.list_curve_w.setMinimumSize(QtCore.QSize(200, 16777215))
+        self.list_curve_w.setObjectName("ListCurveW")
+        self.list_curve_w.setStyleSheet("""
+        QWidget#ListCurveW{
+        background: white;
+        }
+        """)
+        self.verticalLayout = QtWidgets.QVBoxLayout(self.list_curve_w)
+        self.verticalLayout.setContentsMargins(0, 5, 0, 0)
+        self.verticalLayout.setSpacing(2)
+        label = QtWidgets.QLabel(self.list_curve_w)
+        label.setText("Тарировочные кривые")
+        label.setFont(generate_font(12, bold=True))
+        self.verticalLayout.addWidget(label, alignment=QtCore.Qt.AlignmentFlag.AlignCenter)
+
+        self.list_curve_ui = CustomListItem(parent=self.list_curve_w)
+        self.list_curve = os.listdir('saves/' + 'Тарировочные_кривые')
+        self.list_curve.remove('params')
+        self.list_curve_ui.clicked.connect(lambda x: self.select_curve(self.list_curve[x.row()]))
+        self.list_curve_ui.set_list_elements(self.list_curve)
+        self.verticalLayout.addWidget(self.list_curve_ui)
+        self.horizontalLayout.addWidget(self.list_curve_w)
+
+        self.plot_w = QtWidgets.QWidget(parent=self)
+        self.verticalLayout_2 = QtWidgets.QVBoxLayout(self.plot_w)
+        label = QtWidgets.QLabel(self.plot_w)
+        label.setText("Выберите степень пигментирования")
+        label.setFont(generate_font(12, bold=True))
+        self.verticalLayout_2.addWidget(label, alignment=QtCore.Qt.AlignmentFlag.AlignCenter)
+        self.plot = MplCanvas(self.plot_w)
+        self.plot.mpl_connect('button_press_event', self.onclick)
+        self.verticalLayout_2.addWidget(self.plot)
+        self.horizontalLayout.addWidget(self.plot_w)
+
+        self.result_w = QtWidgets.QWidget(parent=self)
+        self.result_w.setMinimumSize(QtCore.QSize(200, 16777215))
+        self.verticalLayout_3 = QtWidgets.QVBoxLayout(self.result_w)
+        label = QtWidgets.QLabel(self.result_w)
+        label.setText("Результат")
+        label.setFont(generate_font(12, bold=True))
+        self.verticalLayout_3.addWidget(label, alignment=QtCore.Qt.AlignmentFlag.AlignCenter)
+        self.widget_5 = QtWidgets.QWidget(parent=self.result_w)
+        self.verticalLayout_3.addWidget(self.widget_5)
+        self.verticalLayout_3.addItem(get_v_spacer())
+
+        self.horizontalLayout.addWidget(self.result_w)
+
+    def closeEvent(self, event):
+        self.recepture.count_recepture_constant = None
+
+    def select_curve(self, name: str):
+        self.drow_graf(name)
+
+    def drow_graf(self, name_curve):
+        try:
+            with SqliteDict('saves/' + 'Тарировочные_кривые' + '/' + name_curve) as mydict:
+                receptures = list(mydict.keys())
+
+                list_of_glass = []
+                list_of_degree = []
+                list_of_maslo = []
+                list_of_hiding_pigm = []
+
+                for recepture in receptures:
+                    list_of_glass.append(mydict[recepture][3][0])
+                    list_of_degree.append(mydict[recepture][6][2])
+                    list_of_maslo.append(mydict[recepture][6][4])
+                    list_of_hiding_pigm.append(mydict[recepture][6][6])
+
+                dec_list_of_glass = list_of_glass
+                list_of_glass = list(map(lambda x: float(x.replace(',', '.')), dec_list_of_glass))
+                dec_list_of_degree = list_of_degree
+                list_of_degree = list(map(lambda x: float(x.replace(',', '.')), dec_list_of_degree))
+                dec_list_of_maslo = list_of_maslo
+
+                # print(list_of_glass)
+                # print(list_of_degree)
+
+                sorted_x_y = sorted(list(zip(list_of_degree, list_of_glass)), key=lambda x: x[0])
+                list_of_degree, list_of_glass = zip(*sorted_x_y)
+
+                maslo = Counter(dec_list_of_maslo).most_common(1)
+                self.tarir_maslo = Decimal(maslo[0][0].replace(',', '.'))
+
+                hiding_pigm = Counter(list_of_hiding_pigm).most_common(1)
+                self.tarir_hiding_pigm = Decimal(hiding_pigm[0][0].replace(',', '.'))
+
+                # print(maslo)
+            self.plot.axes.clear()
+            self.plot.axes.plot(list_of_degree, list_of_glass, '*', label=name_curve)
+            popt = self.plot.curve_fit(self.plot.exponenta, list_of_degree, list_of_glass)
+            self.plot.axes.plot(list_of_degree, self.plot.exponenta(np.array(list_of_degree), *popt), 'r-')
+
+            self.plot.axes.set(xlabel='Степень пигментирования')
+            self.plot.axes.set(ylabel='Блеск')
+
+            self.plot.axes.legend(loc='upper right', frameon=False)
+            self.plot.axes.grid(linestyle='--')
+            self.plot.draw()
+
+        except Exception as e:
+            logging.error(e, exc_info=True)
+            InfoWindow('Для построения кривой необходимо минимум 5 точек.').exec()
+
+# TODO: Когда-нибудь можно будет переписать это нормально
+    def onclick(self, event):
+        tarir_degree_pigm = Decimal(float(event.xdata)).quantize(Decimal("1.00"), "ROUND_HALF_EVEN")
+        # print(f'tarir_degree_pigm = {tarir_degree_pigm}')
+        tarir_const_nap = tarir_degree_pigm * self.tarir_maslo
+        # print(f'tarir_const_nap = {tarir_const_nap}')
+
+        current_maslo = self.recepture.recepture_data.oil
+        # print(f'current_maslo = {current_maslo}')
+        new_degree_pigm = tarir_const_nap / current_maslo
+        # print(f'new_degree_pigm = {new_degree_pigm}')
+
+        suhoi = self.recepture.recepture_data.suhoi
+
+        mass_pigms = (new_degree_pigm * suhoi) / (Decimal(1) + new_degree_pigm)
+        mass_films = suhoi - mass_pigms  # масса 100% ПО
+        list_new_reactives = []
+        list_new_mass = []
+        list_new_category = []
+        list_add_mass_film = []
+        list_films = []
+
+        # начало расчета пигментов
+        old_all_mass_pigms = Decimal(0)
+        for i in self.recepture.recepture_data.list_of_pigment_objects:
+            old_all_mass_pigms += i.mass
+        for i in self.recepture.recepture_data.list_of_filler_objects:
+            old_all_mass_pigms += i.mass
+        for i in self.recepture.recepture_data.list_of_pigmpast_objects:
+            old_all_mass_pigms += i.mass * i.suhoi_pigm
+
+        for i in self.recepture.recepture_data.list_of_pigment_objects:
+            list_new_reactives.append(i.name)
+            list_new_category.append('Pigments')
+            list_new_mass.append(i.mass * mass_pigms / old_all_mass_pigms)
+        for i in self.recepture.recepture_data.list_of_filler_objects:
+            list_new_reactives.append(i.name)
+            list_new_category.append('Fillers')
+            list_new_mass.append(i.mass * mass_pigms / old_all_mass_pigms)
+        for i in self.recepture.recepture_data.list_of_pigmpast_objects:
+            list_new_reactives.append(i.name)
+            list_new_category.append('PigmPast')
+            list_new_mass.append(i.mass * mass_pigms / old_all_mass_pigms)
+        # конец расчета пигментов
+
+        # начало расчета пленок
+        for i in self.recepture.recepture_data.list_of_pigmpast_objects:  # вычитаем то что уже в пигм пастах
+            mass_films -= i.mass * i.suhoi_film
+
+        old_mass_films = Decimal(0)
+
+        for i in self.recepture.recepture_data.list_of_film_objects:
+            old_mass_films += i.mass
+        for i in self.recepture.recepture_data.list_of_additive_objects:
+            if i.type.lower() == 'пластификатор':
+                old_mass_films += i.mass
+
+        for i in self.recepture.recepture_data.list_of_film_objects:
+            list_new_reactives.append(i.name)
+            list_new_category.append('Films')
+            list_films.append(i.name)
+            new_mass_film = i.mass * mass_films / (
+                    old_mass_films * i.suhoi)
+            list_new_mass.append(new_mass_film)
+            list_add_mass_film.append(
+                (old_all_mass_pigms * new_mass_film / mass_pigms) - i.mass)
+
+        for i in self.recepture.recepture_data.list_of_additive_objects:
+            if i.type.lower() == 'пластификатор':
+                list_new_reactives.append(i.name)
+                list_films.append(i.name)
+                list_new_category.append('Additives')
+                new_mass_film = i.mass * mass_films / (
+                        old_mass_films * i.suhoi)
+                list_new_mass.append(new_mass_film)
+                list_add_mass_film.append(
+                    (old_all_mass_pigms * new_mass_film / mass_pigms) - i.mass)
+        # конец расчета пленок
+
+        # print(list_films)
+        # print(list_add_mass_film)
+        check_list = []
+        for i in list_add_mass_film:
+            if int(i) > 0:
+                check_list.append(True)
+            else:
+                check_list.append(False)
+
+        converted_list_new_mass = list(map(normalize_number, list_new_mass))
+
+        delete_chield(self.verticalLayout_3)
+        label = QtWidgets.QLabel(self.result_w)
+        label.setText("Результат")
+        label.setFont(generate_font(12, bold=True))
+        self.verticalLayout_3.addWidget(label, alignment=QtCore.Qt.AlignmentFlag.AlignCenter)
+
+        w, lo = create_w_lo(self.result_w, self.verticalLayout_3)
+        label = QtWidgets.QLabel(w)
+        label.setText(f'Выбранная СП: {tarir_degree_pigm}')
+        lo.addWidget(label)
+
+        for reactives, mass in zip(list_new_reactives, converted_list_new_mass):
+            w, lo = create_w_lo(self.result_w, self.verticalLayout_3)
+            label = QtWidgets.QLabel(w)
+            label.setText(reactives)
+            lo.addWidget(label)
+
+            result_e = CustomEntry(w, padding=False)
+            result_e.setMaximumSize(50, 22)
+            result_e.setReadOnly(True)
+            result_e.setText(mass)
+            lo.addWidget(result_e)
+
+        if all(check_list):
+            w, lo = create_w_lo(self.result_w, self.verticalLayout_3)
+            label = QtWidgets.QLabel(w)
+            label.setText('Если есть готовый образец исходной рецептуры,\n'
+                          'то вы можете добавить на 100г к ней:')
+            lo.addWidget(label)
+
+            converted_list_add_mass_film = list(map(normalize_number, list_add_mass_film))
+            for film, mass in zip(list_films, converted_list_add_mass_film):
+                w, lo = create_w_lo(self.result_w, self.verticalLayout_3)
+                label = QtWidgets.QLabel(w)
+                label.setText(film)
+                lo.addWidget(label)
+
+                result_e = CustomEntry(w, padding=False)
+                result_e.setMaximumSize(50, 22)
+                result_e.setReadOnly(True)
+                result_e.setText(mass)
+                lo.addWidget(result_e)
+
+        spacerItem = QtWidgets.QSpacerItem(20, 40, QtWidgets.QSizePolicy.Policy.Minimum,
+                                            QtWidgets.QSizePolicy.Policy.Expanding)
+        self.verticalLayout_3.addItem(spacerItem)
 
 
-def normalize_number(number: Decimal) -> str:
-    normalized = number.normalize()
-    sign, digit, exponent = normalized.as_tuple()
-    normalized = normalized if exponent <= 0 else normalized.quantize(1)
-    normalized = normalized.quantize(Decimal("1.00"), "ROUND_HALF_EVEN")
-    normalized = str(normalized).replace(".", ",")
-    return normalized
+class CountReceptureCombo(CountReceptureConstant):
+    def __init__(self, parent: ReceptureWindow):
+        super(CountReceptureCombo, self).__init__(parent)
+        label = QtWidgets.QLabel(self.plot_w)
+        label.setText("Укажите характеристики")
+        label.setFont(generate_font(12, bold=True))
+        self.verticalLayout_2.insertWidget(0, label, alignment=QtCore.Qt.AlignmentFlag.AlignCenter)
+        w, lo = insert_w_lo(1, self.plot_w,self.verticalLayout_2)
+        label = QtWidgets.QLabel(w)
+        label.setText("Содержание нелетучих веществ, %:")
+        lo.addWidget(label)
+        self.goal_suhoi = CustomEntry(w, padding=False)
+        self.goal_suhoi.setMaximumSize(50, 22)
+        self.goal_suhoi.setValidator(get_numeric_validator())
+        lo.addWidget(self.goal_suhoi)
+        lo.setContentsMargins(0,0,0,0)
+        lo.addItem(get_h_spacer())
+
+        w, lo = insert_w_lo(1, self.plot_w, self.verticalLayout_2)
+        label = QtWidgets.QLabel(w)
+        label.setText("Требуемая укрывистость мокрой пленки, г/м²:")
+        lo.addWidget(label)
+        self.goal_hiding = CustomEntry(w, padding=False)
+        self.goal_hiding.setMaximumSize(50, 22)
+        self.goal_hiding.setValidator(get_numeric_validator())
+        lo.addWidget(self.goal_hiding)
+        lo.addItem(get_h_spacer())
+        lo.setContentsMargins(0, 0, 0, 0)
 
 
-def get_numeric_validator():
-    reg_ex = QRegularExpression(r"[0-9]*[\,,.]{1}[0-9]*")
-    validator = QRegularExpressionValidator(reg_ex)
-    return validator
+    def closeEvent(self, event):
+        self.recepture.count_recepture_combo = None
+
+    def onclick(self, event):
+        tarir_degree_pigm = Decimal(float(event.xdata)).quantize(Decimal("1.00"), "ROUND_HALF_EVEN")
+        # print('Мы выбрали СП на тарир ' + str(tarir_degree_pigm))
+        # print('Маслоемкость тарировочной кривой ' + str(self.tarir_maslo))
+
+        hiding_pigm = self.recepture.recepture_data.hiding_pigm
+        tarir_hiding_pigm = self.tarir_hiding_pigm
+        suhoi = Decimal(self.goal_suhoi.text().replace(',', '.'))
+        hiding_lkm = Decimal(self.goal_hiding.text().replace(',', '.'))
+
+        # print('Укрывистость пигменты - ' + str(hiding_pigm))
+        mass_pigms = hiding_pigm * Decimal(100) / hiding_lkm
+
+        list_new_reactives = []
+        list_new_mass = []
+        list_new_category = []
+        list_add_mass_film = []
+        list_films = []
+
+        # начало расчета пигментов
+        old_all_mass_pigms = Decimal(0)
+        for i in self.recepture.recepture_data.list_of_pigment_objects:
+            old_all_mass_pigms += i.mass
+        for i in self.recepture.recepture_data.list_of_filler_objects:
+            old_all_mass_pigms += i.mass
+        for i in self.recepture.recepture_data.list_of_pigmpast_objects:
+            old_all_mass_pigms += i.mass * i.suhoi_pigm
+
+        maslo_pigm = Decimal(0)
+        for i in self.recepture.recepture_data.list_of_pigment_objects:
+            list_new_reactives.append(i.name)
+            list_new_category.append('Pigments')
+            list_new_mass.append(i.mass * mass_pigms / old_all_mass_pigms)
+            maslo_pigm += i.mass * i.maslo / old_all_mass_pigms
+        for i in self.recepture.recepture_data.list_of_pigmpast_objects:
+            list_new_reactives.append(i.name)
+            list_new_category.append('PigmPast')
+            list_new_mass.append(i.mass * mass_pigms / old_all_mass_pigms)
+            maslo_pigm += i.mass * i.suhoi_pigm * i.maslo / old_all_mass_pigms
+        # print('Маслоемкость рассчитываемой рецептуры ' + str(maslo_pigm))
+        # check_hiding_pigm = hiding_pigm < tarir_hiding_pigm
+        # check_maslo_pigm = maslo_pigm < self.tarir_maslo
+        # check_philum = maslo_pigm * hiding_pigm < self.tarir_maslo * self.tarir_hiding_pigm
+        tarir_const_nap = tarir_degree_pigm * self.tarir_maslo
+        # print('Константа наполнения по тарир ' + str(tarir_const_nap))
+        # const_nap = tarir_degree_pigm * maslo_pigm
+        # check_const_nap = const_nap < tarir_const_nap
+        new_degree_pigm = tarir_const_nap / maslo_pigm
+
+        # print('требуемая степень пигментирования ' + str(new_degree_pigm))
+        # print('Масса пигментов ' + str(mass_pigms))
+        mass_fillers = ((new_degree_pigm * suhoi) / (Decimal(1) + new_degree_pigm)) - mass_pigms
+        # print('Масса напонителей ' + str(mass_fillers))
+        if len(self.recepture.recepture_data.list_of_filler_objects) == 2:
+            list_new_reactives.append(self.recepture.recepture_data.list_of_filler_objects[0].name)
+            list_new_category.append('Fillers')
+            mass_1_filler = mass_fillers * (maslo_pigm - self.recepture.recepture_data.list_of_filler_objects[1].maslo) / (
+                        self.recepture.recepture_data.list_of_filler_objects[0].maslo - self.recepture.recepture_data.list_of_filler_objects[1].maslo)
+            list_new_mass.append(mass_1_filler)
+
+            list_new_reactives.append(self.recepture.recepture_data.list_of_filler_objects[1].name)
+            list_new_category.append('Fillers')
+            mass_2_filler = mass_fillers - mass_1_filler
+            list_new_mass.append(mass_2_filler)
+        elif len(self.recepture.recepture_data.list_of_filler_objects) == 1:
+            list_new_reactives.append(self.recepture.recepture_data.list_of_filler_objects[0].name)
+            list_new_category.append('Fillers')
+            list_new_mass.append(mass_fillers)
+        else:
+            list_new_reactives.append('Наполнители')
+            list_new_category.append('Fillers')
+            list_new_mass.append(mass_fillers)
+        # конец расчета пигментов и наполнителей
+
+        mass_films = suhoi - mass_pigms - mass_fillers
+        # начало расчета пленок
+        for i in self.recepture.recepture_data.list_of_pigmpast_objects:  # вычитаем то что уже в пигм пастах
+            mass_films -= i.mass * i.suhoi_film
+
+        old_mass_films = Decimal(0)
+        for i in self.recepture.recepture_data.list_of_film_objects:
+            old_mass_films += i.mass
+        for i in self.recepture.recepture_data.list_of_additive_objects:
+            if i.type.lower() == 'пластификатор':
+                old_mass_films += i.mass
+
+        for i in self.recepture.recepture_data.list_of_film_objects:
+            list_new_reactives.append(i.name)
+            list_new_category.append('Films')
+            new_mass_film = i.mass * mass_films / (
+                    old_mass_films * i.suhoi)
+            list_new_mass.append(new_mass_film)
+
+        for i in self.recepture.recepture_data.list_of_additive_objects:
+            if i.type.lower() == 'пластификатор':
+                list_new_reactives.append(i.name)
+                list_new_category.append('Additives')
+                new_mass_film = i.mass * mass_films / (
+                        old_mass_films * i.suhoi)
+                list_new_mass.append(new_mass_film)
+
+        # конец расчета пленок
+        converted_list_new_mass = list(map(normalize_number, list_new_mass))
+
+        delete_chield(self.verticalLayout_3)
+        label = QtWidgets.QLabel(self.result_w)
+        label.setText("Результат")
+        label.setFont(generate_font(12, bold=True))
+        self.verticalLayout_3.addWidget(label, alignment=QtCore.Qt.AlignmentFlag.AlignCenter)
+
+        w, lo = create_w_lo(self.result_w, self.verticalLayout_3)
+        label = QtWidgets.QLabel(w)
+        label.setText(f'Выбранная СП: {tarir_degree_pigm}')
+        lo.addWidget(label)
+
+        for reactives, mass in zip(list_new_reactives, converted_list_new_mass):
+            w, lo = create_w_lo(self.result_w, self.verticalLayout_3)
+            label = QtWidgets.QLabel(w)
+            label.setText(reactives)
+            lo.addWidget(label)
+
+            result_e = CustomEntry(w, padding=False)
+            result_e.setMaximumSize(50, 22)
+            result_e.setReadOnly(True)
+            result_e.setText(mass)
+            lo.addWidget(result_e)
+
+        self.verticalLayout_3.addItem(get_v_spacer())

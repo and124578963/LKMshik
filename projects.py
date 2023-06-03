@@ -7,7 +7,7 @@ from PyQt6.QtWidgets import QAbstractItemView, QInputDialog, QLineEdit
 from sqlitedict import SqliteDict
 
 from common.secrets import Secrets
-from common.ui_elements import HoverableButton
+from common.ui_elements import HoverableButton, CustomListItem, generate_font
 from component_card import CustomEntry
 from newReactives import DarkBtn_Ui, InfoWindow, MyComponentsUi
 from recepture import ReceptureWindow
@@ -84,10 +84,8 @@ class Projects_Ui(object):
 
 
         self.label_name_project = QtWidgets.QLabel(parent=self.toolbar)
-        font = QtGui.QFont()
-        font.setPointSize(20)
         self.label_name_project.setContentsMargins(10, 0, 10, 3)
-        self.label_name_project.setFont(font)
+        self.label_name_project.setFont(generate_font(20))
         self.label_name_project.setObjectName("label_2")
         self.horizontalLayout_2.addWidget(self.label_name_project)
 
@@ -139,13 +137,14 @@ class Projects_Ui(object):
 
     def load_list_projects(self):
         self.list_projects = os.listdir('saves/')
-        listModel = QStringListModel()
-        listModel.setStringList(self.list_projects)
-        self.listView.setModel(listModel)
+        list_projects = list(map(lambda x: 'Тарировочные кривые' if x == "Тарировочные_кривые" else x,
+                                 self.list_projects))
+        self.listView.set_list_elements(list_projects)
 
     def select_project(self, name):
+        name_label = 'Тарировочные кривые' if name == "Тарировочные_кривые" else name
         self.selected_project = name
-        self.label_name_project.setText(name)
+        self.label_name_project.setText(name_label)
         self.edit_btn.show()
         self.del_proj_btn.show()
         self.load_data_project()
@@ -246,56 +245,6 @@ class Projects_Ui(object):
                 dialog.show()
 
 
-class CustomListItem(QtWidgets.QListView):
-    def __init__(self, parent):
-        super(CustomListItem, self).__init__(parent=parent)
-        self.setAlternatingRowColors(True)
-        self.setMouseTracking(True)
-        self.setStyleSheet("""
-
-        QListView {
-        	background-color: white;
-            border: 0px;
-            margin-top: 5px;
-            outline: 0;
-            font: 600 10pt "Segoe UI Semibold";
-
-        }
-
-        QListView::item {
-            border: 0px;
-            padding: 6px 10px 6px 10px;
-
-        }
-
-        QListView::item:selected {
-            padding: 6px 10px 6px 20px;
-        	border:none;
-        	color: black;
-        	background:qlineargradient(spread:pad, x1:0.989, y1:0.494, x2:0, y2:0.506, stop:0 rgba(0, 0, 0, 0), stop:0.4375 rgba(255, 224, 58, 20), stop:0.755682 rgba(255, 224, 58, 66), stop:1 rgba(255, 224, 58, 255));
-        }
-        QListView::item:alternate:selected{
-            padding: 6px 10px 6px 20px;
-        	border:none;
-        	color: black;
-        	background:qlineargradient(spread:pad, x1:0.989, y1:0.494, x2:0, y2:0.506, stop:0 rgba(0, 0, 0, 0), stop:0.4375 rgba(255, 224, 58, 20), stop:0.755682 rgba(255, 224, 58, 66), stop:1 rgba(255, 224, 58, 255));
-        }
-        QListView::item:focus{border:none;}
-
-        QListView::item:alternate {
-        	background: #eeedeb;
-
-        }
-
-         /* Mouse County floats on the entry */
-        QListView::item::hover {
-        	background:qlineargradient(spread:pad, x1:0.989, y1:0.494, x2:0, y2:0.506, stop:0 rgba(0, 0, 0, 0), stop:0.4375 rgba(255, 224, 58, 20), stop:0.755682 rgba(255, 224, 58, 66), stop:1 rgba(255, 224, 58, 255));
-
-        }
-
-                """)
-        self.setEditTriggers(QAbstractItemView.EditTrigger.NoEditTriggers)
-
 
 class ProjectToolButton(QtWidgets.QPushButton):
     hover = QtCore.pyqtSignal(str)
@@ -359,9 +308,7 @@ class Iteration(QtWidgets.QWidget):
         self.horizontalLayout_3.setContentsMargins(0, 0, 0, 0)
         self.iter_name = QtWidgets.QLabel(parent=self.iteration_toolbar)
         self.iter_name.setText(name)
-        font = QtGui.QFont()
-        font.setPointSize(16)
-        self.iter_name.setFont(font)
+        self.iter_name.setFont(generate_font(16))
         self.horizontalLayout_3.addWidget(self.iter_name)
 
         self.graph_iter_btn = ProjectToolButton(self.iteration_toolbar, "graph")
@@ -473,9 +420,7 @@ class Recepture(QtWidgets.QFrame):
         self.horizontalLayout_5.setContentsMargins(0,0,0,0)
         self.label_name = QtWidgets.QLabel(parent=self.nameArea)
         self.label_name.setText(name)
-        font = QtGui.QFont()
-        font.setPointSize(12)
-        self.label_name.setFont(font)
+        self.label_name.setFont(generate_font(12))
         self.horizontalLayout_5.addWidget(self.label_name)
 
         # self.empty = QtWidgets.QLabel(parent=self)

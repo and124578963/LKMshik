@@ -1,10 +1,22 @@
 import copy
+from decimal import Decimal
+from typing import List, Tuple
 
-
+import numpy as np
 from PyQt6 import QtGui, QtCore, QtWidgets
-from PyQt6.QtGui import QImage
+from PyQt6.QtCore import QStringListModel, QRegularExpression
+from PyQt6.QtGui import QImage, QFont, QRegularExpressionValidator
 from PIL import Image, ImageColor
 from PIL.ImageQt import ImageQt
+from PyQt6.QtWidgets import QAbstractItemView
+
+import sys
+import matplotlib
+matplotlib.use('QtAgg')
+from matplotlib.backends.backend_qt5agg import FigureCanvasQTAgg
+from matplotlib.figure import Figure
+from scipy.optimize import curve_fit
+
 
 class HoverableButton(QtWidgets.QPushButton):
     hover = QtCore.pyqtSignal(str)
@@ -183,6 +195,80 @@ QRadioButton::indicator:unchecked {{border-image: url({0});}}
         )
 
 
+class CustomListItem(QtWidgets.QListView):
+    def __init__(self, parent):
+        super(CustomListItem, self).__init__(parent=parent)
+        self.setAlternatingRowColors(True)
+        self.setMouseTracking(True)
+        self.setStyleSheet("""
+
+        QListView {
+        	background-color: white;
+            border: 0px;
+            margin-top: 5px;
+            outline: 0;
+            font: 600 10pt "Segoe UI Semibold";
+
+        }
+
+        QListView::item {
+            border: 0px;
+            padding: 6px 10px 6px 10px;
+
+        }
+
+        QListView::item:selected {
+            padding: 6px 10px 6px 20px;
+        	border:none;
+        	color: black;
+        	background:qlineargradient(spread:pad, x1:0.989, y1:0.494, x2:0, y2:0.506, stop:0 rgba(0, 0, 0, 0), stop:0.4375 rgba(255, 224, 58, 20), stop:0.755682 rgba(255, 224, 58, 66), stop:1 rgba(255, 224, 58, 255));
+        }
+        QListView::item:alternate:selected{
+            padding: 6px 10px 6px 20px;
+        	border:none;
+        	color: black;
+        	background:qlineargradient(spread:pad, x1:0.989, y1:0.494, x2:0, y2:0.506, stop:0 rgba(0, 0, 0, 0), stop:0.4375 rgba(255, 224, 58, 20), stop:0.755682 rgba(255, 224, 58, 66), stop:1 rgba(255, 224, 58, 255));
+        }
+        QListView::item:focus{border:none;}
+
+        QListView::item:alternate {
+        	background: #eeedeb;
+
+        }
+
+         /* Mouse County floats on the entry */
+        QListView::item::hover {
+        	background:qlineargradient(spread:pad, x1:0.989, y1:0.494, x2:0, y2:0.506, stop:0 rgba(0, 0, 0, 0), stop:0.4375 rgba(255, 224, 58, 20), stop:0.755682 rgba(255, 224, 58, 66), stop:1 rgba(255, 224, 58, 255));
+
+        }
+
+                """)
+        self.setEditTriggers(QAbstractItemView.EditTrigger.NoEditTriggers)
+
+    def set_list_elements(self, list_strings: List[str]):
+        listModel = QStringListModel()
+        listModel.setStringList(list_strings)
+        self.setModel(listModel)
+
+
+class MplCanvas(FigureCanvasQTAgg):
+    def __init__(self, parent=None, width=5, height=4, dpi=90):
+        self.fig = Figure(figsize=(width, height), dpi=dpi)
+        self.fig.set(facecolor='#f0f0f0')
+        self.axes = self.fig.add_subplot(111)
+        self.axes.set(facecolor='white')
+        self.fig.subplots_adjust(left=0.12, bottom=0.12, right=0.95, top=0.95)
+        super(MplCanvas, self).__init__(self.fig)
+
+    def curve_fit(self, *args):
+        popt, _ = curve_fit(*args)
+        return popt
+
+    def exponenta(self, x, a, b, c, d, e):
+        # print(x, a, b, c)
+        return a * np.float_power(x, 4) + b * np.float_power(x, 3) + c * np.float_power(x, 2) \
+               + d * np.float_power(x,1) + e
+
 
 def generate_color(argb: str) -> QImage:
     background = Image.open("images/black_white_background.png")
@@ -195,3 +281,54 @@ def generate_color(argb: str) -> QImage:
     result = Image.alpha_composite(background, color_loyout)
     background.close()
     return QImage(ImageQt(result))
+
+def generate_font(size: int, bold=False) -> QFont:
+    font = QtGui.QFont()
+    font.setPointSize(size)
+    font.setBold(bold)
+    return font
+
+def delete_chield(loyout):
+    while loyout.count():
+        child = loyout.takeAt(0)
+        if child.widget():
+            child.widget().deleteLater()
+
+def create_w_lo(parent_w: QtWidgets.QWidget, parent_lo: QtWidgets.QBoxLayout) -> \
+        Tuple[QtWidgets.QWidget, QtWidgets.QBoxLayout]:
+    w = QtWidgets.QWidget(parent=parent_w)
+    lo = QtWidgets.QHBoxLayout(w)
+    lo.setSpacing(5)
+    lo.setContentsMargins(0,0,0,0)
+    parent_lo.addWidget(w)
+    return w, lo
+
+def insert_w_lo(idex: int, parent_w: QtWidgets.QWidget, parent_lo: QtWidgets.QBoxLayout) -> \
+        Tuple[QtWidgets.QWidget, QtWidgets.QBoxLayout]:
+    w = QtWidgets.QWidget(parent=parent_w)
+    lo = QtWidgets.QHBoxLayout(w)
+    lo.setSpacing(5)
+    lo.setContentsMargins(0,0,0,0)
+    parent_lo.insertWidget(idex, w)
+    return w, lo
+
+def normalize_number(number: Decimal) -> str:
+    normalized = number.normalize()
+    sign, digit, exponent = normalized.as_tuple()
+    normalized = normalized if exponent <= 0 else normalized.quantize(1)
+    normalized = normalized.quantize(Decimal("1.00"), "ROUND_HALF_EVEN")
+    normalized = str(normalized).replace(".", ",")
+    return normalized
+
+def get_numeric_validator():
+    reg_ex = QRegularExpression(r"[0-9]*[\,,.]{1}[0-9]*")
+    validator = QRegularExpressionValidator(reg_ex)
+    return validator
+
+def get_h_spacer():
+    return QtWidgets.QSpacerItem(20, 40, QtWidgets.QSizePolicy.Policy.Expanding,
+                                       QtWidgets.QSizePolicy.Policy.Minimum)
+
+def get_v_spacer():
+    return QtWidgets.QSpacerItem(20, 40, QtWidgets.QSizePolicy.Policy.Minimum,
+                                       QtWidgets.QSizePolicy.Policy.Expanding)
