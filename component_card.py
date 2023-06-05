@@ -7,7 +7,7 @@ from PyQt6.QtCore import QRegularExpression
 from PyQt6.QtGui import QColor, QImage, QIcon, QRegularExpressionValidator
 from PyQt6.QtWidgets import QWidget, QGridLayout, QFileDialog, QColorDialog
 
-from common.ui_elements import generate_color
+from common.ui_elements import generate_color, CustomEntry, CustomCombobox
 from database import DB
 from settings import TABLE_DICT, get_category, get_lables, get_columns, get_desc
 
@@ -512,83 +512,3 @@ class EditComponentCard(ComponentCard):
                 btn.setText(f"{self.btn_save_name} - Название или шифр неуникальны")
 
 
-class CustomCombobox(QtWidgets.QComboBox):
-    def __init__(self, parent, _type=None):
-        super(CustomCombobox, self).__init__(parent=parent)
-        self._type = _type
-        self.wheelEvent = lambda event: None
-        self.setCursor(QtGui.QCursor(QtCore.Qt.CursorShape.PointingHandCursor))
-        self.setStyleSheet("""
-
-                QComboBox {
-                  border-bottom: 1px solid #aaa;
-                  border-right: 1px solid #aaa;
-                  border-radius: 2px;
-
-          padding: 2px 5px;
-                }
-                QComboBox:focus {
-                     border-bottom: 1px solid #209fa6;
-                     border-right: 1px solid #209fa6;
-                }
-                 QComboBox:hover{
-
-                 }
-                 QComboBox::drop-down {
-                    subcontrol-origin: padding;
-                    subcontrol-position: top right;
-                    width: 30px;
-                    cursor: pointer;
-                    border-left-width: 0px;
-                    border-left-color: darkgray;
-                    border-left-style: solid; /* just a single line */
-                    border-top-right-radius: 3px; /* same radius as the QComboBox */
-                    border-bottom-right-radius: 3px;
-}
-QComboBox::down-arrow {
-    image: url(images/arrow.png);
-}
-
-QComboBox::down-arrow:on { /* shift the arrow when popup is open */
-    top: 1px;
-    left: 1px;
-}
-                """)
-
-    def text(self):
-        return self.currentText()
-
-    def setText(self, text):
-        if self.isEditable():
-            self.setEditText(text)
-        elif self._type == "Валюта":
-            if text == "$":
-                self.setCurrentIndex(1)
-            elif text == "€":
-                self.setCurrentIndex(2)
-            else:
-                self.setCurrentIndex(0)
-
-
-class CustomEntry(QtWidgets.QLineEdit):
-    def __init__(self, parent, padding=True):
-        super(CustomEntry, self).__init__(parent=parent)
-        padding = "padding-right:30px;" if padding else ""
-        self.setStyleSheet("""
-        
-        QLineEdit {{
-          border-bottom: 1px solid #aaa;
-           border-right: 1px solid #aaa;
-          border-radius: 2px;
-          padding: 2px 5px;
-           {}
-                   }}
-        QLineEdit:focus {{
-             border-bottom: 1px solid #209fa6;
-             border-right: 1px solid #209fa6;
-        }}
-         QLineEdit:hover{{
-         
-         }}
-        
-        """.format(padding))

@@ -15,7 +15,7 @@ from sqlitedict import SqliteDict
 from common.secrets import Secrets
 from common.ui_elements import HoverableButton, MenuButton, ColorButton, CustomMenu, CustomRadioBtn, generate_color, \
     CustomListItem, generate_font, MplCanvas, delete_chield, create_w_lo, normalize_number, get_numeric_validator, \
-    insert_w_lo, get_h_spacer, get_v_spacer, change_position_window
+    insert_w_lo, get_h_spacer, get_v_spacer, change_position_window, ChoiceColor
 from component_card import CustomEntry, CustomCombobox
 from database import DB
 from typing import List, Tuple
@@ -45,6 +45,7 @@ class ReceptureWindow(QtWidgets.QWidget):
         self.count_recepture_constant = None
         self.count_recepture_combo = None
         self.philum_window = None
+        self.choice_color_window = None
         self.list_comp_row_obj = []
         self.list_comp_2_row_obj = []
 
@@ -416,6 +417,7 @@ class ReceptureWindow(QtWidgets.QWidget):
 
         self.select_color_btn = ColorButton(self.color_w, "blue")
         self.select_color_btn.setText("Выбрать цвет")
+        self.select_color_btn.clicked.connect(lambda: self.open_choice_color())
         self.gridLayout_4.addWidget(self.select_color_btn, 5, 1, 1, 1)
 
 
@@ -759,6 +761,17 @@ class ReceptureWindow(QtWidgets.QWidget):
         if self.philum_window is None:
             self.philum_window = PhilumWindow(self)
             self.philum_window.show()
+
+    def open_choice_color(self):
+        if self.choice_color_window is None:
+            self.choice_color_window = ChoiceColor(self, self.set_selected_color)
+            self.choice_color_window.show()
+
+    def set_selected_color(self, argb):
+        image = QtGui.QPixmap(generate_color(argb))
+        self.color2.setPixmap(image)
+        self.recepture_data.recepture_color = argb
+
 
 class ComponentRow(QtWidgets.QFrame):
     def __init__(self, parent, _index, name="", amount="", callback_get_list_obj=None, callback_mass=None):

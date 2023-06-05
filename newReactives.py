@@ -3,7 +3,7 @@ from PyQt6.QtCore import QSize, Qt, QAbstractTableModel, QSortFilterProxyModel
 from PyQt6.QtGui import QIcon
 from PyQt6.QtWidgets import QWidget, QDialog, QFileDialog
 
-from common.ui_elements import generate_color
+from common.ui_elements import generate_color, generate_font
 from component_card import ComponentCard, EditComponentCard
 from settings import TABLE_DICT, get_category, PASSPORT, update_config_param
 from database import DB
@@ -46,26 +46,29 @@ class MyComponentsUi(QWidget):
         self.verticalLayout = QtWidgets.QVBoxLayout(self.left_side)
         self.verticalLayout.setContentsMargins(0, 0, 0, 0)
         self.verticalLayout.setSpacing(0)
-        self.verticalLayout.setObjectName("verticalLayout")
-        self.widget_3 = QtWidgets.QWidget(parent=self.left_side)
 
-        self.widget_3.setMaximumSize(QtCore.QSize(16777215, 100))
-        self.widget_3.setObjectName("widget_3")
+
+        self.widget_3 = QtWidgets.QWidget(parent=self.left_side)
+        # self.widget_3.setMaximumSize(QtCore.QSize(16777215, 100))
+        # self.widget_3.setObjectName("widget_3")
         self.horizontalLayout_3 = QtWidgets.QHBoxLayout(self.widget_3)
-        self.horizontalLayout_3.setContentsMargins(0, 0, 0, 0)
-        self.horizontalLayout_3.setSpacing(0)
-        self.horizontalLayout_3.setObjectName("horizontalLayout_3")
-        self.label_2 = QtWidgets.QLabel(parent=self.widget_3)
-        self.label_2.setMaximumSize(QtCore.QSize(300, 350))
-        self.label_2.setTextFormat(QtCore.Qt.TextFormat.PlainText)
-        self.label_2.setPixmap(QtGui.QPixmap("images/Логотип.png"))
-        self.label_2.setScaledContents(True)
-        self.label_2.setAlignment(
-            QtCore.Qt.AlignmentFlag.AlignLeading | QtCore.Qt.AlignmentFlag.AlignLeft | QtCore.Qt.AlignmentFlag.AlignVCenter)
-        self.label_2.setWordWrap(False)
-        self.label_2.setOpenExternalLinks(False)
-        self.label_2.setObjectName("label_2")
-        self.horizontalLayout_3.addWidget(self.label_2)
+        self.horizontalLayout_3.setContentsMargins(15, 20, 0, 0)
+        # self.horizontalLayout_3.setSpacing(0)
+        # self.horizontalLayout_3.setObjectName("horizontalLayout_3")
+        category_label = QtWidgets.QLabel(parent=self.left_side)
+        category_label.setText("Категории")
+        category_label.setFont(generate_font(18))
+        self.verticalLayout.addWidget(category_label)
+        self.widget_3.setMinimumSize(QtCore.QSize(300, 60))
+        # self.label_2.setTextFormat(QtCore.Qt.TextFormat.PlainText)
+        # self.label_2.setPixmap(QtGui.QPixmap("images/Логотип.png"))
+        # self.label_2.setScaledContents(True)
+        # self.label_2.setAlignment(
+        #     QtCore.Qt.AlignmentFlag.AlignLeading | QtCore.Qt.AlignmentFlag.AlignLeft | QtCore.Qt.AlignmentFlag.AlignVCenter)
+        # self.label_2.setWordWrap(False)
+        # self.label_2.setOpenExternalLinks(False)
+        # self.label_2.setObjectName("label_2")
+        self.horizontalLayout_3.addWidget(category_label)
         self.verticalLayout.addWidget(self.widget_3)
 
         self.category_btn_dict = {}
