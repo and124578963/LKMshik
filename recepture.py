@@ -9,7 +9,7 @@ import numpy as np
 from PyQt6 import QtCore, QtGui, QtWidgets
 from PyQt6.QtCore import Qt, QRegularExpression, QSize
 from PyQt6.QtGui import QRegularExpressionValidator
-from PyQt6.QtWidgets import QCompleter
+from PyQt6.QtWidgets import QCompleter, QInputDialog, QLineEdit
 from sqlitedict import SqliteDict
 
 from common.secrets import Secrets
@@ -46,8 +46,10 @@ class ReceptureWindow(QtWidgets.QWidget):
         self.count_recepture_combo = None
         self.philum_window = None
         self.choice_color_window = None
+        self.save_as_window = None
         self.list_comp_row_obj = []
         self.list_comp_2_row_obj = []
+        self.list_experiment_obj = []
 
         self.verticalLayout_3 = QtWidgets.QVBoxLayout(self)
         self.verticalLayout_3.setContentsMargins(0, 0, 0, 0)
@@ -69,7 +71,7 @@ class ReceptureWindow(QtWidgets.QWidget):
         self.horizontalLayout_6 = QtWidgets.QHBoxLayout(self.widget)
         self.horizontalLayout_6.setObjectName("horizontalLayout_6")
 
-        self.left_side =  QtWidgets.QWidget(parent=self.widget)
+        self.left_side = QtWidgets.QWidget(parent=self.widget)
         self.left_side.setMaximumSize(QtCore.QSize(390, 16777215))
         self.horizontalLayout_6.addWidget(self.left_side)
         self.left_vertical_lo = QtWidgets.QVBoxLayout(self.left_side)
@@ -137,10 +139,10 @@ class ReceptureWindow(QtWidgets.QWidget):
                                             QtWidgets.QSizePolicy.Policy.Expanding)
         self.verticalLayout.addItem(spacerItem1)
 
-        for name, value in self.recepture_data.component_list:
-            self.add_row("one", name=name, value=value)
-        for name, value in self.recepture_data.component_list_2:
-            self.add_row("two", name=name, value=value)
+        for (name, value), comment in zip(self.recepture_data.component_list, self.recepture_data.list_comments):
+             self.add_row("one", name=name, value=value, comment=comment)
+        for (name, value), comment in zip(self.recepture_data.component_list_2, self.recepture_data.list_comments_2):
+            self.add_row("two", name=name, value=value, comment=comment)
 
         if not self.recepture_data.flag_2k:
             self.component_two.hide()
@@ -297,7 +299,6 @@ class ReceptureWindow(QtWidgets.QWidget):
         self.tabWidget.addTab(self.recepture_tab, "Рецептура")
 
 
-
         self.experimental_tab = QtWidgets.QWidget()
         self.verticalLayout_4 = QtWidgets.QVBoxLayout(self.experimental_tab)
         self.verticalLayout_4.setContentsMargins(9, 0, 9, 9)
@@ -372,9 +373,6 @@ class ReceptureWindow(QtWidgets.QWidget):
                                             QtWidgets.QSizePolicy.Policy.Expanding)
         self.gridLayout_2.addItem(spacerItem3, 100, 0, 1, 1)
         self.horizontalLayout_2.addWidget(self.exp_params_w)
-
-
-
 
         self.color_w = QtWidgets.QWidget(parent=self.exp_body_w)
         self.gridLayout_4 = QtWidgets.QGridLayout(self.color_w)
@@ -462,14 +460,16 @@ class ReceptureWindow(QtWidgets.QWidget):
 
         horizontalLayout_3 = QtWidgets.QHBoxLayout(toolbar)
         horizontalLayout_3.setSpacing(4)
-        name_recepture = QtWidgets.QLabel(parent=toolbar)
-        name_recepture.setContentsMargins(5,0,25,0)
-        name_recepture.setText(self.name)
-        horizontalLayout_3.addWidget(name_recepture)
-        name_recepture.setFont(generate_font(18))
+        self.name_recepture = QtWidgets.QLabel(parent=toolbar)
+        self.name_recepture.setContentsMargins(5,0,25,0)
+        self.name_recepture.setText(self.name)
+        horizontalLayout_3.addWidget(self.name_recepture)
+        self.name_recepture.setFont(generate_font(18))
         save_btn = HoverableButton(toolbar, "save", (20,20))
+        save_btn.clicked.connect(lambda: self.save())
         horizontalLayout_3.addWidget(save_btn)
         save_as_btn = HoverableButton(toolbar, "save_as", (20,20))
+        save_as_btn.clicked.connect(lambda: self.save(save_as=True))
         horizontalLayout_3.addWidget(save_as_btn)
         word_btn = HoverableButton(toolbar, "word", (20,20))
         horizontalLayout_3.addWidget(word_btn)
@@ -479,8 +479,6 @@ class ReceptureWindow(QtWidgets.QWidget):
         horizontalLayout_3.addItem(spacerItem)
         delete_btn = HoverableButton(toolbar, "del_rec", (20,20))
         horizontalLayout_3.addWidget(delete_btn)
-
-
 
         return toolbar
 
@@ -497,12 +495,11 @@ class ReceptureWindow(QtWidgets.QWidget):
         self.btn_2k.set_pressed()
         self.count_mass()
 
-    def add_row(self, _type, name="", value=""):
+    def add_row(self, _type, name="", value="", comment="$None"):
         if _type == "one":
-            self.component_one.add_row(name=name, value=value, callback_mass=self.count_mass)
+            self.component_one.add_row(name=name, value=value, callback_mass=self.count_mass, comment=comment)
         else:
-            self.component_two.add_row(name=name, value=value, callback_mass=self.count_mass)
-
+            self.component_two.add_row(name=name, value=value, callback_mass=self.count_mass, comment=comment)
 
         # parent = self.component_one if _type == "one" else self.component_two
         # list_obj = self.list_comp_row_obj if _type == "one" else self.list_comp_2_row_obj
@@ -518,7 +515,7 @@ class ReceptureWindow(QtWidgets.QWidget):
         # self.reset_row_number(_type)
 
     def add_exp_row(self, name, needed, value, state):
-        ExperimentRow(self.exp_s_area, self.gridLayout_3, name, needed, value, state)
+        self.list_experiment_obj.append(ExperimentRow(self.exp_s_area, self.gridLayout_3, name, needed, value, state))
 
     def reset_row_number(self, _type: str):
         list_obj: List[ComponentRow]
@@ -542,6 +539,32 @@ class ReceptureWindow(QtWidgets.QWidget):
         self.recepture_data.component_list_2 = list_comp_2
         self.recepture_data.category_list = list_comp_category_1
         self.recepture_data.category_list_2 = list_comp_category_2
+
+    def collect_exp_data(self):
+        list_data = []
+        for row in self.list_experiment_obj:
+            list_data.append(row.get())
+
+        self.recepture_data.experiment_list = list_data
+
+    def collect_note(self):
+        self.recepture_data.notes = self.description.toPlainText()
+
+    def save(self, save_as=None):
+        self.collect_rows_data()
+        self.collect_exp_data()
+        self.collect_note()
+        if save_as is not None:
+            if self.save_as_window is None:
+                self.save_as_window = SaveAsWindow(self, self.project, self.iter, self.save_as)
+                self.save_as_window.show()
+
+        else:
+            self.recepture_data.save()
+
+    def save_as(self, iter, new_name):
+        self.name_recepture.setText(new_name)
+        self.recepture_data.save(save_as=(iter, new_name))
 
     def count_mass(self, collected=False):
         if not collected:
@@ -774,7 +797,8 @@ class ReceptureWindow(QtWidgets.QWidget):
 
 
 class ComponentRow(QtWidgets.QFrame):
-    def __init__(self, parent, _index, name="", amount="", callback_get_list_obj=None, callback_mass=None):
+    def __init__(self, parent, _index, name="", amount="", callback_get_list_obj=None, callback_mass=None,
+                 comment="$None"):
         super(ComponentRow, self).__init__(parent=parent)
         self.callback_mass = callback_mass
         self.db = DB()
@@ -845,7 +869,11 @@ class ComponentRow(QtWidgets.QFrame):
         self.swap.setMenu(menu)
         self.horizontalLayout_4.addWidget(self.swap)
 
-    def change_state(self):
+        if comment != "$None":
+            self.change_state(initial=True)
+            self.comment.setPlainText(comment)
+
+    def change_state(self, initial=False):
         if self.flag_comment:
             self.flag_comment = False
             self.category_icon.show()
@@ -879,7 +907,8 @@ class ComponentRow(QtWidgets.QFrame):
 
             self.swap.setMenu(menu)
             self.reset_row_number()
-        self.callback_mass()
+        if not initial:
+            self.callback_mass()
 
         menu.setStyleSheet(
             """
@@ -1034,13 +1063,14 @@ class Ui_Component(QtWidgets.QWidget):
         #         self.gridLayout.setColumnStretch(i % 3, 1)
         #         self.gridLayout.setRowStretch(j, 1)
 
-    def add_row(self, name="", value="", callback_mass=None):
+    def add_row(self, name="", value="", callback_mass=None, comment=None):
         parent = self
         list_obj = self.list_comp_row_obj
         loyout = self.gridLayout
 
         _index = len(list_obj)
-        row = ComponentRow(parent, _index, name=name, amount=value, callback_get_list_obj=self.get_list_obj, callback_mass=callback_mass)
+        row = ComponentRow(parent, _index, name=name, amount=value,
+                           callback_get_list_obj=self.get_list_obj, callback_mass=callback_mass, comment=comment)
 
         Box = QtWidgets.QVBoxLayout()
         Box.addWidget(row)
@@ -1165,6 +1195,8 @@ class ExperimentRow:
     row = 2
 
     def __init__(self, parent, lo: QtWidgets.QGridLayout, name: str, needed: str, value: str, state: int):
+        self.name = name
+        self.needed = needed
         name_l = QtWidgets.QLabel(parent=parent)
         name_l.setMinimumSize(QtCore.QSize(200, 0))
         name_l.setText(name)
@@ -1200,18 +1232,23 @@ class ExperimentRow:
         number_group.addButton(self.red_rb)
         lo.addWidget(self.red_rb, ExperimentRow.row, 5, 1, 1)
 
-
-        if state == 0:
+        if int(state) == 0:
             self.gray_rb.setChecked(True)
-        elif state == 1:
+        elif int(state) == 1:
             self.green_rb.setChecked(True)
-        elif state == -1:
+        elif int(state) == -1:
             self.red_rb.setChecked(True)
 
         ExperimentRow.row += 1
 
     def get(self):
-        return self.value.text()
+        state = 0
+        if self.green_rb.isChecked():
+            state = 1
+        if self.red_rb.isChecked():
+            state = -1
+        # print(state)
+        return self.name, self.needed, self.value.text(), state
 
 
 class ReceptureDataModel:
@@ -1226,12 +1263,17 @@ class ReceptureDataModel:
         self.project_color = "#00ffffff"
         self.recepture_color = "#00ffffff"
         self.password = ""
+
         self.component_list = [("", "") for _ in range(7)]
+        self.list_comments = ["$None" for _ in range(7)]
         self.category_list = ["" for _ in range(7)]
+
         self.component_list_2 = [("", "") for _ in range(3)]
-        self.category_list_2 = ["" for _ in range(7)]
+        self.list_comments_2 = ["$None" for _ in range(3)]
+        self.category_list_2 = ["" for _ in range(3)]
+
         self.experiment_list = []
-        self.exp_list_status = None
+        self.list_experiment_status = None
         self.notes = ""
 
         self.flag_2k = False
@@ -1263,14 +1305,14 @@ class ReceptureDataModel:
 
     def map_encrypt(self, str):
         global password
-        if self.project not in self.not_encoded_projects:
+        if self.project not in self.not_encoded_projects and str != "$None":
             result = Secrets().symmetric_encrypt(str.encode(), password)
         else:
             result = str
         return result
 
     def map_decrypt(self, byte):
-        if self.project not in self.not_encoded_projects:
+        if self.project not in self.not_encoded_projects and byte != "$None":
             result = Secrets().symmetric_decrypt(byte, password).decode()
         else:
             result = byte
@@ -1304,18 +1346,26 @@ class ReceptureDataModel:
             configs = self.data.pop(9)
             self.price_K = configs.get('price_K', 1.0)
             self.accurate_density = configs.get('accurate_density', 0.0)
-            self.exp_list_status = configs.get('exp_list_status', None)
+            self.list_experiment_status = configs.get('list_experiment_status', [0 for _ in self.data[2]])
+            self.recepture_color = configs.get("recepture_color", "#00ffffff")
+            list_comments = configs.get("list_comments", ["$None" for _ in self.data[0]])
+            list_comments_2 = configs.get("list_comments_2", ["$None" for _ in self.data[0]])
+            self.list_comments = list(map(self.map_decrypt, list_comments))
+            self.list_comments_2 = list(map(self.map_decrypt, list_comments_2))
+        else:
+            self.price_K = 1.0
+            self.accurate_density =0.0
+            self.list_experiment_status = [0 for _ in self.data[2]]
+            self.recepture_color = "#00ffffff"
+            self.list_comments = ["$None" for _ in self.data[0]]
+            self.list_comments_2 = ["$None" for _ in self.data[0]]
 
         for i, param in enumerate(self.data):
             self.data[i] = list(map(self.map_decrypt, param))
 
-        if self.exp_list_status == None:
-            self.exp_list_status = [0 for _ in self.data[2]]
-
         self.component_list = list(zip(self.data[0], self.data[1]))
         self.component_list_2 = list(zip(self.data[7], self.data[8]))
-        self.experiment_list = list(zip(self.data[2], self.data[5], self.data[3], self.exp_list_status))
-
+        self.experiment_list = list(zip(self.data[2], self.data[5], self.data[3], self.list_experiment_status))
         notes = self.data[4]
         if isinstance(notes, list):
             notes = notes[0]
@@ -1340,33 +1390,57 @@ class ReceptureDataModel:
             if comp[0] != '' and comp[1] != '':
                 self.flag_2k = True
 
-    def save_data(self, event=None):
-        self.collect_data()
+    def save(self, event=None, save_as=None):
+        if save_as is not None:
+            self.iteration = save_as[0]
+            self.name = save_as[1]
 
+        self.all_count()
         # [0] - реактивы, [1]- масса реактивов, [2] - эксперимент параметры,
         # [3] - полученны значения, [4] - заметки, [5] - ТЗ, [6] - расчетные характеристики,
         # [7] - реактивы 2к, [8] - масса реактивов 2к, [9] - dict params
-
         reactives = []
         reactives_mass = []
-        reactives_2 = []
-        reactives_mass_2 = []
         experiment_params = []
         experiment_value = []
+        note = self.notes
         needed_experiment_value = []
+        properies = []
+        reactives_2 = []
+        reactives_mass_2 = []
         dict_params = {}
+        list_comments = []
+        list_comments_2 = []
+        list_experiment_status = []
+        # print(self.component_list)
+        for row in self.component_list:
+            if isinstance(row, str):
+                reactives.append("")
+                reactives_mass.append("")
+                list_comments.append(row)
+            else:
+                reactives.append(row[0])
+                reactives_mass.append(row[1])
+                list_comments.append("$None")
 
-        for name, value in self.component_list:
-            reactives.append(name)
-            reactives_mass.append(value)
-        for name, value in self.component_list_2:
-            reactives_2.append(name)
-            reactives_mass_2.append(value)
-        for name, need, value in self.experiment_list:
+        for row in self.component_list_2:
+            if isinstance(row, str):
+                reactives_2.append("")
+                reactives_mass_2.append("")
+                list_comments_2.append(row)
+            else:
+                reactives_2.append(row[0])
+                reactives_mass_2.append(row[1])
+                list_comments_2.append("$None")
+
+        for name, need, value, status in self.experiment_list:
             experiment_params.append(name)
             experiment_value.append(value)
             needed_experiment_value.append(need)
+            list_experiment_status.append(status)
 
+        # self.properies=['Цена','м.д.н.в','СП','ОКП','Масло','Кп','Ср укрыв','Укрыв сух пленки','Филум', 'КОКП', 'Укр мокрой пл', 'плотность']
+        # old style
         properies = [
             self.price,
             self.mass_unflyable,
@@ -1375,22 +1449,31 @@ class ReceptureDataModel:
             self.oil,
             self.kn,
             self.hiding_pigm,
-            self.hiding_wet,
+            self.hiding_dry,
             self.philum,
             self.kokp,
-            self.hiding_dry,
+            self.hiding_wet,
             self.density,
         ]
 
         dict_params['price_K'] = self.price_K
-        dict_params['accurate_density'] =  self.accurate_density
+        dict_params['accurate_density'] = self.accurate_density
+        dict_params["list_experiment_status"] = list_experiment_status
+        dict_params["recepture_color"] = self.recepture_color
+        dict_params["list_comments"] = list(map(self.map_encrypt, list_comments))
+        dict_params["list_comments_2"] = list(map(self.map_encrypt, list_comments_2))
+
 
         with SqliteDict('saves/' + self.project + '/' + self.iteration) as mydict:
+
+            # [0] - реактивы, [1]- масса реактивов, [2] - эксперимент параметры,
+            # [3] - полученны значения, [4] - заметки, [5] - ТЗ, [6] - расчетные характеристики,
+            # [7] - реактивы 2к, [8] - масса реактивов 2к, [9] - dict params
             mydict[self.name] = [list(map(self.map_encrypt, reactives)),
                                  list(map(self.map_encrypt, reactives_mass)),
                                  list(map(self.map_encrypt, experiment_params)),
                                  list(map(self.map_encrypt, experiment_value)),
-                                 list(map(self.map_encrypt, [self.notes, ]))[0],
+                                 list(map(self.map_encrypt, [note, ])),
                                  list(map(self.map_encrypt, needed_experiment_value)),
                                  list(map(self.map_encrypt, properies)),
                                  list(map(self.map_encrypt, reactives_2)),
@@ -1421,7 +1504,7 @@ class ReceptureDataModel:
         data = list(filter(lambda foo: len(foo[0]) > 1, data))
         if all:
             data = list(filter(lambda foo: len(foo[0][1]) > 0, data))
-            print(data)
+            # print(data)
 
         else:
             data = list(filter(lambda foo: foo[1] != "", data))
@@ -3336,4 +3419,65 @@ class PhilumWindow(QtWidgets.QWidget):
 
     def closeEvent(self, event):
         self.recepture.philum_window = None
+
+
+class SaveAsWindow(QtWidgets.QWidget):
+    def __init__(self, parent: ReceptureWindow, project, iteration, save_callback):
+        super(SaveAsWindow, self).__init__()
+        self.project = project
+        self.iteration = iteration
+        self.parent_obj = parent
+        self.save_callback = save_callback
+        self.resize(300, 96)
+        self.setMaximumSize(QtCore.QSize(300, 150))
+        self.gridLayout = QtWidgets.QGridLayout(self)
+        self.gridLayout.setObjectName("gridLayout")
+        self.iterl = QtWidgets.QLabel(parent=self)
+        self.iterl.setText("Выберите итерацию:")
+        self.gridLayout.addWidget(self.iterl, 0, 0, 1, 1)
+        self.iter_c = CustomCombobox(parent=self)
+        self.iter_c.addItems(self.get_list_iter())
+        self.iter_c.setText(self.iteration)
+        self.iter_c.setObjectName("iter_c")
+        self.gridLayout.addWidget(self.iter_c, 0, 1, 1, 1)
+        self.name_l = QtWidgets.QLabel(parent=self)
+        self.name_l.setText("Новое название:")
+        self.gridLayout.addWidget(self.name_l, 1, 0, 1, 1)
+        self.name_e = CustomEntry(parent=self, padding=False)
+        self.gridLayout.addWidget(self.name_e, 1, 1, 1, 1)
+
+        self.save_b = ColorButton(parent=self, color="blue")
+        self.save_b.clicked.connect(lambda : self.save())
+        self.gridLayout.addWidget(self.save_b, 2, 0, 1, 2)
+        self.save_b.setText("Сохранить")
+        self.setWindowTitle("Сохранить как")
+
+    def get_list_iter(self) -> List[str]:
+        iters = os.listdir('saves/' + self.project)
+        iters.remove('params')
+        return iters
+
+    def get_list_recepture(self, iter) -> List[str]:
+        with SqliteDict('saves/' + self.project + '/' + iter) as mydict:
+            return list(mydict.keys())
+
+    def closeEvent(self, event):
+        self.parent_obj.save_as_window = None
+
+    def save(self):
+        iter = self.iter_c.text().strip()
+        new_name = self.name_e.text().strip()
+        if iter == "" or new_name == "":
+            InfoWindow("Имя не указано").exec()
+            return
+        list_names = self.get_list_recepture(iter)
+        if new_name in list_names:
+            InfoWindow("Рецептура с таким именем уже существует.").exec()
+            return
+
+        self.save_callback(iter, new_name)
+        self.closeEvent(event=None)
+        self.destroy()
+
+
 
