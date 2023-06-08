@@ -2,12 +2,13 @@ import os
 import shutil
 
 from PyQt6 import QtCore, QtGui, QtWidgets
-from PyQt6.QtCore import QStringListModel,  Qt
+from PyQt6.QtCore import QStringListModel, Qt, QSize
 from PyQt6.QtWidgets import QAbstractItemView, QInputDialog, QLineEdit
 from sqlitedict import SqliteDict
 
 from common.secrets import Secrets
-from common.ui_elements import HoverableButton, CustomListItem, generate_font
+from common.ui_elements import HoverableButton, CustomListItem, generate_font, ColorButton, generate_color, ChoiceColor, \
+    get_v_spacer
 from component_card import CustomEntry
 from newReactives import DarkBtn_Ui, InfoWindow, MyComponentsUi
 from recepture import ReceptureWindow
@@ -43,7 +44,6 @@ class Projects_Ui(object):
         self.logo = QtWidgets.QLabel(parent=self.left_side)
         self.logo.setMinimumSize(QtCore.QSize(0, 0))
         self.logo.setMaximumSize(QtCore.QSize(300, 100))
-        self.logo.setText("")
         self.logo.setPixmap(QtGui.QPixmap("images/Логотип.png"))
         self.logo.setScaledContents(True)
         self.logo.setObjectName("logo")
@@ -131,7 +131,7 @@ class Projects_Ui(object):
         self.horizontalLayout.addWidget(self.right_side)
         MainWindow.setCentralWidget(self.centralwidget)
 
-        self.retranslateUi(MainWindow)
+        MainWindow.setWindowTitle("ЛКМщик - Мои проекты")
         QtCore.QMetaObject.connectSlotsByName(MainWindow)
         self.scrollArea.setWidgetResizable(True)
 
@@ -144,6 +144,7 @@ class Projects_Ui(object):
     def select_project(self, name):
         name_label = 'Тарировочные кривые' if name == "Тарировочные_кривые" else name
         self.selected_project = name
+        self.listView.change_selected(self.selected_project)
         self.label_name_project.setText(name_label)
         self.edit_btn.show()
         self.del_proj_btn.show()
@@ -198,16 +199,13 @@ class Projects_Ui(object):
                 self.label_name_project.setText("")
                 self.edit_btn.hide()
                 self.del_proj_btn.hide()
+                self.delete_chield(self.main_grid)
 
     def open_my_components(self):
         if not MyComponentsUi._instance:
             dialog = MyComponentsUi()
             self.dialogs.append(dialog)
             dialog.show()
-
-    def retranslateUi(self, MainWindow):
-        _translate = QtCore.QCoreApplication.translate
-        MainWindow.setWindowTitle(_translate("MainWindow", "ЛКМщик - Мои проекты"))
 
     def delete_chield(self, loyout):
         while loyout.count():
@@ -280,7 +278,6 @@ class ProjectToolButton(QtWidgets.QPushButton):
     def enterEvent(self, event):
         self.hover.emit("enterEvent")
         self.setIcon(self.icon_on)
-
 
     def leaveEvent(self, event):
         self.hover.emit("leaveEvent")
@@ -376,11 +373,9 @@ class Iteration(QtWidgets.QWidget):
                                           "Название:", QLineEdit.EchoMode.Normal,
                                           "")
         if ok and name_recepture:
-            dialog = ReceptureWindow(self.project, self.name, name_recepture)
+            dialog = ReceptureWindow(self.project, self.name, name_recepture, project_window=Projects_Ui.instance)
             self.dialogs.append(dialog)
             dialog.show()
-
-
 
 
 class Recepture(QtWidgets.QFrame):
@@ -526,7 +521,7 @@ class Recepture(QtWidgets.QFrame):
         self.open_recepture(self.name)
 
     def open_recepture(self, name_r):
-        dialog = ReceptureWindow(self.project, self.iter, name_r)
+        dialog = ReceptureWindow(self.project, self.iter, name_r, project_window=Projects_Ui.instance)
         self.dialogs.append(dialog)
         dialog.show()
 
@@ -609,6 +604,8 @@ class AddProjectWindow(QtWidgets.QWidget):
         AddProjectWindow.instance = self
         self.setObjectName("Form")
         self.row = 0
+        self.project_color = "#00FFFFFF"
+        self.choice_color_window = None
         self.setMinimumSize(500, 400)
         self.setMaximumSize(600, 999999)
         self.list_entry_name_obj = []
@@ -692,6 +689,33 @@ class AddProjectWindow(QtWidgets.QWidget):
         self.save_btn.clicked.connect(lambda x: self.save_data())
         self.verticalLayout_3.addWidget(self.save_btn)
 
+        self.color_tab = QtWidgets.QWidget()
+        self.verticalLayout_color = QtWidgets.QVBoxLayout(self.color_tab)
+        self.lable_color = QtWidgets.QLabel(parent=self.color_tab)
+        self.lable_color.setText("Требуемый цвет:")
+        self.lable_color.setFont(generate_font(12))
+        self.verticalLayout_color.addWidget(self.lable_color)
+
+        self.color_img = QtWidgets.QLabel(parent=self.color_tab)
+        image = QtGui.QPixmap(generate_color(self.project_color))
+        self.color_img.setPixmap(image)
+        self.color_img.setMaximumSize(QSize(82, 80))
+        self.color_img.setStyleSheet("""
+                QLabel{
+                border: 1px solid #ddd;
+                }
+                """)
+        self.verticalLayout_color.addWidget(self.color_img, alignment=QtCore.Qt.AlignmentFlag.AlignCenter)
+
+        select_color_btn = ColorButton(self.color_tab, "blue")
+        select_color_btn.setText("Выбрать цвет")
+        select_color_btn.clicked.connect(lambda: self.open_choice_color())
+        self.verticalLayout_color.addWidget(select_color_btn)
+        self.verticalLayout_color.addItem(get_v_spacer())
+        self.save_btn = DarkBtn_Ui(self.color_tab, btn_type)
+        self.save_btn.setContentsMargins(9, 9, 9, 9)
+        self.save_btn.clicked.connect(lambda x: self.save_data())
+        self.verticalLayout_color.addWidget(self.save_btn)
 
         self.descript_tab = QtWidgets.QWidget()
         self.descript_tab.setObjectName("descript_tab")
@@ -707,10 +731,11 @@ class AddProjectWindow(QtWidgets.QWidget):
         self.verticalLayout_4.addWidget(self.save_btn)
         self.add_default_rows()
         self.tabWidget.addTab(self.general_tab, "Основные")
+        self.tabWidget.addTab(self.color_tab, "Цвет")
         self.tabWidget.addTab(self.descript_tab, "Описание")
         self.verticalLayout.addWidget(self.tabWidget)
 
-        self.retranslateUi(self)
+        self.setWindowTitle("Добавить проект")
         self.tabWidget.setCurrentIndex(0)
         QtCore.QMetaObject.connectSlotsByName(self)
 
@@ -799,7 +824,7 @@ class AddProjectWindow(QtWidgets.QWidget):
                 mydict['params'] = enc_data_params
                 mydict['params_value'] = enc_data_params_value
                 mydict['description'] = description
-
+                mydict['project_color'] = self.project_color
                 mydict.commit()
             Projects_Ui.instance.load_list_projects()
             self.closeEvent(None)
@@ -808,10 +833,15 @@ class AddProjectWindow(QtWidgets.QWidget):
     def closeEvent(self, event):
         AddProjectWindow.instance = None
 
-    def retranslateUi(self, Form):
-        _translate = QtCore.QCoreApplication.translate
-        Form.setWindowTitle(_translate("Form", "Добавить проект"))
+    def open_choice_color(self):
+        if self.choice_color_window is None:
+            self.choice_color_window = ChoiceColor(self, self.set_selected_color)
+            self.choice_color_window.show()
 
+    def set_selected_color(self, argb):
+            image = QtGui.QPixmap(generate_color(argb))
+            self.color_img.setPixmap(image)
+            self.project_color = argb
 
 class EditProjectWindow(AddProjectWindow):
 
@@ -821,7 +851,6 @@ class EditProjectWindow(AddProjectWindow):
         AddProjectWindow.instance = self
         super(EditProjectWindow, self).__init__(btn_type="edit_proj")
         self.setWindowTitle(f"Редактирование проекта - {self.project_name}")
-
 
     def add_default_rows(self):
         password = ""
@@ -833,6 +862,8 @@ class EditProjectWindow(AddProjectWindow):
             enc_data_params = mydict['params']
             enc_data_params_value = mydict['params_value']
             description = mydict.get('description', None)
+            self.project_color = mydict.get('project_color', "#00FFFFFF")
+            self.set_selected_color(self.project_color)
             if self.project_name not in ['Тарировочные_кривые', 'Тарировочные кривые', 'Примеры']:
                 for params, params_value in zip(enc_data_params, enc_data_params_value):
                     dec_data_params.append(Secrets().symmetric_decrypt(params, password).decode())
@@ -873,6 +904,7 @@ class EditProjectWindow(AddProjectWindow):
                     mydict['params'] = enc_data_params
                     mydict['params_value'] = enc_data_params_value
                     mydict['description'] = description
+                    mydict['project_color'] = self.project_color
                     mydict.commit()
         else:
             enc_data_params = []
@@ -890,6 +922,7 @@ class EditProjectWindow(AddProjectWindow):
                 mydict['params'] = enc_data_params
                 mydict['params_value'] = enc_data_params_value
                 mydict['description'] = description
+                mydict['project_color'] = self.project_color
                 mydict.commit()
 
         Projects_Ui.instance.load_list_projects()

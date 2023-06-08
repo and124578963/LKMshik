@@ -5,7 +5,7 @@ from typing import List, Tuple
 import ncs
 import numpy as np
 from PyQt6 import QtGui, QtCore, QtWidgets
-from PyQt6.QtCore import QStringListModel, QRegularExpression, Qt, QSize
+from PyQt6.QtCore import QStringListModel, QRegularExpression, Qt, QSize, QRect, QModelIndex
 from PyQt6.QtGui import QImage, QFont, QRegularExpressionValidator, QIcon, QColor
 from PIL import Image, ImageColor
 from PIL.ImageQt import ImageQt
@@ -284,7 +284,6 @@ class CustomListItem(QtWidgets.QListView):
         self.setAlternatingRowColors(True)
         self.setMouseTracking(True)
         self.setStyleSheet("""
-
         QListView {
         	background-color: white;
             border: 0px;
@@ -329,9 +328,17 @@ class CustomListItem(QtWidgets.QListView):
         self.setEditTriggers(QAbstractItemView.EditTrigger.NoEditTriggers)
 
     def set_list_elements(self, list_strings: List[str]):
-        listModel = QStringListModel()
-        listModel.setStringList(list_strings)
-        self.setModel(listModel)
+        self.list_strings = list_strings
+        self.listModel = QStringListModel()
+        self.listModel.setStringList(self.list_strings)
+        self.setModel(self.listModel)
+
+    def change_selected(self, name):
+        name = 'Тарировочные кривые' if name == "Тарировочные_кривые" else name
+        self.reset()
+        index = self.list_strings.index(name)
+        self.setCurrentIndex(self.listModel.index(index))
+
 
 
 class MplCanvas(FigureCanvasQTAgg):

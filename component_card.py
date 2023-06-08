@@ -7,7 +7,7 @@ from PyQt6.QtCore import QRegularExpression
 from PyQt6.QtGui import QColor, QImage, QIcon, QRegularExpressionValidator
 from PyQt6.QtWidgets import QWidget, QGridLayout, QFileDialog, QColorDialog
 
-from common.ui_elements import generate_color, CustomEntry, CustomCombobox
+from common.ui_elements import generate_color, CustomEntry, CustomCombobox, ColorButton
 from database import DB
 from settings import TABLE_DICT, get_category, get_lables, get_columns, get_desc
 
@@ -315,19 +315,9 @@ class ComponentCard(QWidget):
                                                QtWidgets.QSizePolicy.Policy.Expanding)
             layout.addItem(spacerItem)
 
-        save_btn = QtWidgets.QPushButton(parent=parent)
+        save_btn = ColorButton(parent, color="blue")
         save_btn.setText(self.btn_save_name)
         save_btn.clicked.connect(self.save_data)
-        save_btn.setCursor(QtGui.QCursor(QtCore.Qt.CursorShape.PointingHandCursor))
-        save_btn.setStyleSheet("""
-        
-        QPushButton{
-          padding: 10px;
-
-        }
-  
-        
-        """)
         layout.addWidget(save_btn, *coord)
         self.list_save_btn.append(save_btn)
 

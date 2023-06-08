@@ -23,14 +23,15 @@ import xml.etree.ElementTree as ET
 import requests
 from newReactives import InfoWindow, DarkBtn_Ui
 from settings import get_suhoi_type, update_config_param
-
+from skimage import color as color_kit
 
 
 
 class ReceptureWindow(QtWidgets.QWidget):
 
-    def __init__(self, project_name: str, iter_name: str, name: str):
+    def __init__(self, project_name: str, iter_name: str, name: str, project_window=None):
         super(ReceptureWindow, self).__init__()
+        self.project_window = project_window
         self.project = project_name
         self.iter = iter_name
         self.name = name
@@ -403,8 +404,6 @@ class ReceptureWindow(QtWidgets.QWidget):
         self.gridLayout_4.addWidget(self.lable_color2, 1, 1, 1, 1, alignment=QtCore.Qt.AlignmentFlag.AlignCenter)
 
         self.color2 = QtWidgets.QLabel(parent=self.color_w)
-        image = QtGui.QPixmap(generate_color(self.recepture_data.recepture_color))
-        self.color2.setPixmap(image)
         self.color2.setMaximumSize(QSize(82, 80))
         self.color2.setStyleSheet("""
         QLabel{
@@ -418,6 +417,10 @@ class ReceptureWindow(QtWidgets.QWidget):
         self.select_color_btn.clicked.connect(lambda: self.open_choice_color())
         self.gridLayout_4.addWidget(self.select_color_btn, 5, 1, 1, 1)
 
+        self.delta_e_color_l = QtWidgets.QLabel(self.color_w)
+        self.delta_e_color_l.setText("ΔЕ:")
+        self.gridLayout_4.addWidget(self.delta_e_color_l, 6, 1, 1, 1, alignment=QtCore.Qt.AlignmentFlag.AlignCenter)
+        self.set_selected_color(self.recepture_data.recepture_color)
 
         spacerItem4 = QtWidgets.QSpacerItem(20, 40, QtWidgets.QSizePolicy.Policy.Minimum,
                                             QtWidgets.QSizePolicy.Policy.Expanding)
@@ -478,6 +481,7 @@ class ReceptureWindow(QtWidgets.QWidget):
                                            QtWidgets.QSizePolicy.Policy.Minimum)
         horizontalLayout_3.addItem(spacerItem)
         delete_btn = HoverableButton(toolbar, "del_rec", (20,20))
+        delete_btn.clicked.connect(lambda: self.delete())
         horizontalLayout_3.addWidget(delete_btn)
 
         return toolbar
@@ -561,10 +565,19 @@ class ReceptureWindow(QtWidgets.QWidget):
 
         else:
             self.recepture_data.save()
+            self.project_window.select_project(self.project)
 
     def save_as(self, iter, new_name):
         self.name_recepture.setText(new_name)
         self.recepture_data.save(save_as=(iter, new_name))
+        self.project_window.select_project(self.project)
+
+    def delete(self):
+        if InfoWindow(f"Вы уверены, что хотите удалить \nрецептуру: {self.name}").exec():
+            self.recepture_data.delete()
+            self.closeEvent(None)
+            self.project_window.select_project(self.project)
+            self.destroy()
 
     def count_mass(self, collected=False):
         if not collected:
@@ -794,6 +807,9 @@ class ReceptureWindow(QtWidgets.QWidget):
         image = QtGui.QPixmap(generate_color(argb))
         self.color2.setPixmap(image)
         self.recepture_data.recepture_color = argb
+
+        delta_e = self.recepture_data.count_delta_e_color()
+        self.delta_e_color_l.setText(f"ΔЕ: {delta_e}")
 
 
 class ComponentRow(QtWidgets.QFrame):
@@ -1329,7 +1345,7 @@ class ReceptureDataModel:
             else:
                 self.project_params = enc_data_params
                 self.project_params_value = enc_data_params_value
-            self.project_color = mydict.get("color", "#00ffffff")
+            self.project_color = mydict.get("project_color", "#00ffffff")
 
 
         with SqliteDict('saves/' + self.project + '/' + self.iteration) as mydict:
@@ -1480,6 +1496,11 @@ class ReceptureDataModel:
                                  list(map(self.map_encrypt, reactives_mass_2)),
                                  dict_params,
                                  ]
+            mydict.commit()
+
+    def delete(self):
+        with SqliteDict('saves/' + self.project + '/' + self.iteration) as mydict:
+            mydict.pop(self.name)
             mydict.commit()
 
     def count_mass(self, all=False) -> Decimal:
@@ -1979,6 +2000,38 @@ class ReceptureDataModel:
 
         self.okp_kokp = okp_kokp * Decimal(100)
 
+    def count_delta_e_color(self) -> str:
+        alfa1 = self.project_color[0:3]
+        r1 = float(int(self.project_color[3:5], 16))
+        g1 = float(int(self.project_color[5:7], 16))
+        b1 = float(int(self.project_color[7:], 16))
+
+        alfa2 = self.recepture_color[0:3]
+        r2 = float(int(self.recepture_color[3:5], 16))
+        g2 = float(int(self.recepture_color[5:7], 16))
+        b2 = float(int(self.recepture_color[7:], 16))
+
+        # прозрачные исключаем
+        if alfa1 == "#00" or alfa2 == "#00":
+            return ""
+
+        rgb1 = [r1 / 255, b1 / 255, g1 / 255]
+        rgb2 = [r2 / 255, b2 / 255, g2 / 255]
+
+        lab1 = color_kit.rgb2lab(rgb1)
+        lab2 = color_kit.rgb2lab(rgb2)
+
+        L1 = round(lab1[0], 1)
+        a1 = round(lab1[1], 1)
+        b1 = round(lab1[2], 1)
+
+        L2 = round(lab2[0], 1)
+        a2 = round(lab2[1], 1)
+        b2 = round(lab2[2], 1)
+
+        delta = ((L1 - L2) ** 2 + (a1 - a2) ** 2 + (b1 - b2) ** 2) ** 0.5
+        delta = str(round(delta, 2)).replace(".", ",")
+        return delta
 
 class SearchCombobox(CustomEntry):
     def __init__(self, parent, list_names):
