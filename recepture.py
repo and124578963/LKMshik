@@ -1,6 +1,7 @@
 import copy
 import logging
 import os
+import traceback
 from collections import Counter
 from decimal import Decimal
 from functools import reduce
@@ -29,7 +30,7 @@ from skimage import color as color_kit
 
 class ReceptureWindow(QtWidgets.QWidget):
 
-    def __init__(self, project_name: str, iter_name: str, name: str, project_window=None):
+    def __init__(self, project_name: str, iter_name: str, name: str, project_window=None, is_new=False):
         super(ReceptureWindow, self).__init__()
         self.project_window = project_window
         self.project = project_name
@@ -424,7 +425,7 @@ class ReceptureWindow(QtWidgets.QWidget):
 
         spacerItem4 = QtWidgets.QSpacerItem(20, 40, QtWidgets.QSizePolicy.Policy.Minimum,
                                             QtWidgets.QSizePolicy.Policy.Expanding)
-        self.gridLayout_4.addItem(spacerItem4, 6, 0, 1, 1)
+        self.gridLayout_4.addItem(spacerItem4, 7, 0, 1, 1)
 
 
         self.horizontalLayout_2.addWidget(self.color_w)
@@ -444,8 +445,8 @@ class ReceptureWindow(QtWidgets.QWidget):
         self.verticalLayout_3.addWidget(self.tabWidget)
 
         self.tabWidget.setCurrentIndex(0)
-
-        self.count_mass()
+        if not is_new:
+            self.count_mass()
 
     def closeEvent(self, event):
         Ui_Component.list_obj.remove(self.component_one)
@@ -611,10 +612,11 @@ class ReceptureWindow(QtWidgets.QWidget):
             self.update_lable_param(lable, value, size)
 
     def update_lable_param(self, lable: QtWidgets.QLabel, new_value: Decimal, size: str):
+        # print(f"lable { lable.text()} new_value {new_value}")
         text = lable.text()
         value = normalize_number(new_value)
         _index = text.index(":") + 1
-        text =  f"{text[:_index]} {value} {size}"
+        text = f"{text[:_index]} {value} {size}"
         lable.setText(text)
 
     def recount_mass(self):
@@ -819,6 +821,7 @@ class ComponentRow(QtWidgets.QFrame):
         self.callback_mass = callback_mass
         self.db = DB()
         self.category = ""
+        self.category_obj = None
         self.callback_get_list_obj = callback_get_list_obj
         self.flag_comment = False
         self.component_list = []
@@ -944,38 +947,47 @@ class ComponentRow(QtWidgets.QFrame):
         text = ""
         tooltip = ""
         if len(self.db.check_group_reactives("Solvents", name)) == 1:
+            self.category_obj = Solvents(name, "0")
             self.category = "Solvents"
             icon_path = "images/solvent.png"
-            tooltip = "Растворитель"
+            tooltip = self.category_obj.to_string()
         elif len(self.db.check_group_reactives("Pigments", name)) == 1:
+            self.category_obj = Pigments(name, "0")
             self.category = "Pigments"
             icon_path = "images/pigment.png"
-            tooltip = "Пигмент"
+            tooltip = self.category_obj.to_string()
         elif len(self.db.check_group_reactives("Fillers", name)) == 1:
+            self.category_obj = Fillers(name, "0")
             self.category = "Fillers"
             icon_path = "images/filler.png"
-            tooltip = "Наполнитель"
+            tooltip = self.category_obj.to_string()
         elif len(self.db.check_group_reactives("Films", name)) == 1:
+            self.category_obj = Films(name, "0")
             self.category = "Films"
             icon_path = "images/film.png"
-            tooltip = "Пленкообразователь"
+            tooltip = self.category_obj.to_string()
         elif len(self.db.check_group_reactives("Additives", name)) == 1:
+            self.category_obj = Additives(name, "0")
             self.category = "Additives"
             icon_path = "images/additive.png"
-            tooltip = "Функц. добавка"
+            tooltip = self.category_obj.to_string()
         elif len(self.db.check_group_reactives("PigmPast", name)) == 1:
+            self.category_obj = Pigmpasts(name, "0")
             self.category = "PigmPast"
             icon_path = "images/pigm_past.png"
-            tooltip = "Пигментная паста"
+            tooltip = self.category_obj.to_string()
         elif len(self.db.check_group_reactives("Hardener", name)) == 1:
+            self.category_obj = Hardeners(name, "0")
             self.category = "Hardener"
             icon_path = "images/hardener.png"
-            tooltip = "Отвердитель"
+            tooltip = self.category_obj.to_string()
         else:
             self.category = ""
             icon_path = ""
             text = "?"
-            tooltip = "Поле пустое или компонент не найден"
+            tooltip = "Поле пустое или компонент не найден.\n" \
+                      "Данная строка не будет учитываться\n" \
+                      "в расчете."
 
         self.category_icon.setText(text) if text != "" else self.category_icon.setPixmap(QtGui.QPixmap(icon_path))
         self.category_icon.setToolTip(tooltip)
@@ -1356,6 +1368,10 @@ class ReceptureDataModel:
             # [3] - полученны значения, [4] - заметки, [5] - ТЗ, [6] - расчетные характеристики,
             # [7] - реактивы 2к, [8] - масса реактивов 2к, [9] - dict params
         if self.data is None:
+            empty_exp_value = ("" for _ in self.project_params)
+            empty_exp_status = (0 for _ in self.project_params)
+            self.experiment_list = list(zip(self.project_params, self.project_params_value, empty_exp_value, empty_exp_status))
+
             return
 
         if len(self.data) > 9:
@@ -1390,11 +1406,11 @@ class ReceptureDataModel:
         # self.properies=['Цена','м.д.н.в','СП','ОКП','Масло','Кп','Ср укрыв','Укрыв сух пленки','Филум', 'КОКП', 'Укр мокрой пл', 'плотность']
         properties = self.data[6]
         self.price = properties[0]
-        self.mass_unflyable = properties[1]
-        self.sp = properties[2]
+        self.suhoi = properties[1]
+        self.degree_pigm = properties[2]
         self.okp = properties[3]
         self.oil = properties[4]
-        self.kn = properties[5]
+        self.const_pigm = properties[5]
         self.hiding_pigm = properties[6]
         self.hiding_wet = properties[7]
         self.philum = properties[8]
@@ -1459,11 +1475,11 @@ class ReceptureDataModel:
         # old style
         properies = [
             self.price,
-            self.mass_unflyable,
-            self.sp,
+            self.suhoi,
+            self.degree_pigm,
             self.okp,
             self.oil,
-            self.kn,
+            self.const_pigm,
             self.hiding_pigm,
             self.hiding_dry,
             self.philum,
@@ -1506,7 +1522,10 @@ class ReceptureDataModel:
     def count_mass(self, all=False) -> Decimal:
         components, _ = self.get_actual_data_for_count(all=all)
         components = list(map(lambda x: Decimal(x[1].replace(",", ".")), components))
-        summ = reduce(lambda x, y: x + y, components)
+        if len(components) !=0:
+            summ = reduce(lambda x, y: x + y, components)
+        else:
+            summ = Decimal(0)
         self.mass = summ
         return self.mass
 
@@ -1531,8 +1550,11 @@ class ReceptureDataModel:
             data = list(filter(lambda foo: foo[1] != "", data))
 
         data = list(filter(lambda foo: type(foo[0]) == tuple, data))
-
-        components, categories = list(zip(*data))
+        if len(list(zip(*data))) != 0:
+            components, categories = list(zip(*data))
+        else:
+            components, categories = [], []
+            print("Нет компонентов в рецептуре")
         return components, categories
 
     def create_category_objs(self):
@@ -1598,8 +1620,8 @@ class ReceptureDataModel:
             except Exception as e:
                 # logging.error(e, exc_info=True)
                 info_text = info_text + error_text + "\n"
-
-                raise e
+                print(traceback.format_exc())
+                # raise e
 
         if info_text != "":
             info_text = 'ОШИБКА ПРИ РАСЧЕТЕ! \nПроверьте расчетные значения используемых ' \
@@ -1757,24 +1779,26 @@ class ReceptureDataModel:
         # print('масса растворителя:' + str(all_solvent_mass))
 
         density_solvent = Decimal(0)
-        for i in list_same:
-            i = i.mass * (Decimal(1.0) - i.suhoi) * i.density_solvent / all_solvent_mass
-            density_solvent += i
-
-        for i in self.list_of_additive_objects:
-            if i.density_solvent > 0:
+        if all_solvent_mass != Decimal(0):
+            for i in list_same:
                 i = i.mass * (Decimal(1.0) - i.suhoi) * i.density_solvent / all_solvent_mass
                 density_solvent += i
+            for i in self.list_of_additive_objects:
+                if i.density_solvent > 0:
+                    i = i.mass * (Decimal(1.0) - i.suhoi) * i.density_solvent / all_solvent_mass
+                    density_solvent += i
+        else:
+            self.volume_suhoi = Decimal(0)
+            return
+
         # print('плотность растворителя:' + str(density_solvent))
 
-        try:
+        if density_solvent != Decimal(0) and lkm_volume != Decimal(0):
             solvent_volume = (Decimal(1.0) - suhoi) * 100 / density_solvent
             # print('объем растворителя:' + str(solvent_volume))
             volume_suhoi = (lkm_volume - solvent_volume) * 100 / lkm_volume
 
-        except Exception as e:
-            logging.error(e, exc_info=True)
-
+        else:
             volume_suhoi = Decimal(0)
 
         self.volume_suhoi = volume_suhoi
@@ -1848,8 +1872,8 @@ class ReceptureDataModel:
         self.okp = okp
 
     def all_oil_in_objects(self):
-        all_mass = 0
-        all_maslo = 0
+        all_mass = Decimal(0)
+        all_maslo = Decimal(0)
         for i in self.list_of_pigment_objects:
             i = i.mass
             all_mass += i
@@ -1899,10 +1923,18 @@ class ReceptureDataModel:
         self.hiding_pigm = all_hiding
 
         suhoi = self.suhoi
-        hiding_lkp = (all_hiding * suhoi * 100) / (all_mass_pigm * 100 / all_mass)
+        if all_mass != Decimal(0) and all_mass_pigm != Decimal(0):
+            hiding_lkp = (all_hiding * suhoi * 100) / (all_mass_pigm * 100 / all_mass)
+        else:
+            hiding_lkp = Decimal(0)
+
         self.hiding_dry = hiding_lkp / 100
 
-        wet_hiding_lkp = hiding_lkp / suhoi
+        if suhoi != Decimal(0):
+            wet_hiding_lkp = hiding_lkp / suhoi
+        else:
+            wet_hiding_lkp = Decimal(0)
+
         self.hiding_wet = wet_hiding_lkp
 
     def filum_in_objects(self):
@@ -2032,6 +2064,7 @@ class ReceptureDataModel:
         delta = ((L1 - L2) ** 2 + (a1 - a2) ** 2 + (b1 - b2) ** 2) ** 0.5
         delta = str(round(delta, 2)).replace(".", ",")
         return delta
+
 
 class SearchCombobox(CustomEntry):
     def __init__(self, parent, list_names):
@@ -2205,6 +2238,12 @@ class Solvents(Component):
         self.density_solvent = self.density
         self.suhoi = Decimal('0')
         self.dry_mass = Decimal('0')
+        # print(self.to_string())
+
+    def to_string(self):
+        return f"""Растворитель:
+        Цена: {self.price}
+        Плотность: {self.density}"""
 
 
 class Pigments(Component):
@@ -2216,6 +2255,13 @@ class Pigments(Component):
         self.suhoi = Decimal("1")
         self.dry_mass = Decimal(mass.replace(",", "."))
 
+    def to_string(self):
+        return f"""Пигмент:
+        Цена: {self.price}
+        Плотность: {self.density}
+        Маслоемкость: {self.maslo}
+        Укрывистость: {self.hiding}"""
+
 
 class Fillers(Component):
     def __init__(self, name, mass):
@@ -2224,6 +2270,12 @@ class Fillers(Component):
         self.maslo = Decimal(self.db.get_info_reactive('Fillers', self.name, 'maslo')[0][0].replace(",", "."))
         self.suhoi = Decimal("1")
         self.dry_mass = Decimal(mass.replace(",", "."))
+
+    def to_string(self):
+        return f"""Наполнитель:
+        Цена: {self.price}
+        Плотность: {self.density}
+        Маслоемкость: {self.maslo}"""
 
 
 class Films(Component):
@@ -2235,9 +2287,18 @@ class Films(Component):
         self.density_solvent = Decimal(self.db.get_info_reactive('Films', self.name, 'density_solvent')[0][0].replace(",", "."))
         self.dry_mass = Decimal(mass.replace(",", ".")) * self.suhoi
         func_groups = self.db.get_info_reactive('Films', self.name, 'func_groups')[0][0].replace(",", ".")
-        if func_groups in ["", "."]:
+        if func_groups.strip() in ["", "."]:
             func_groups = "0"
         self.func_groups = Decimal(func_groups)
+
+    def to_string(self):
+        return f"""Пленкообразователь:
+        Цена: {self.price}
+        Плотность: {self.density}
+        Плотность сухой пленки: {self.density_dry}
+        Плотность растворителя: {self.density_solvent}
+        Массовая доля нелетучих веществ: {self.suhoi}
+        Грамм/эквивалент функциональных групп: {self.func_groups}"""
 
 
 class Additives(Component):
@@ -2249,6 +2310,14 @@ class Additives(Component):
         self.type = self.db.get_info_reactive('Additives', self.name, 'type')[0][0]
         self.density_solvent = Decimal(self.db.get_info_reactive('Additives', self.name, 'density_solvent')[0][0].replace(",", "."))
         self.dry_mass = Decimal(mass.replace(",", ".")) * self.suhoi
+
+    def to_string(self):
+        return f"""Функциональная добавка:
+           Цена: {self.price}
+           Плотность: {self.density}
+           Тип: {self.type}
+           Плотность растворителя: {self.density_solvent}
+           Массовая доля нелетучих веществ: {self.suhoi}"""
 
 
 class Pigmpasts(Component):
@@ -2265,6 +2334,19 @@ class Pigmpasts(Component):
         self.density_solvent = Decimal(self.db.get_info_reactive('Pigmpast', self.name, 'density_solvent')[0][0].replace(",", "."))
         self.dry_mass = Decimal(mass.replace(",", ".")) * self.suhoi
 
+    def to_string(self):
+        return f"""Пигментная паста:
+        Цена: {self.price}
+        Массовая доля нелетучих веществ: {self.suhoi}
+        Массовая доля наполнения: {self.suhoi_pigm}
+        Массовая доля пленкообразователя: {self.suhoi_film}
+        Плотность пасты: {self.density}
+        Плотность растворителя: {self.density_solvent}
+        Плотность сухой пленки: {self.density_dry}
+        Средняя плотность наполнения: {self.density_pigm}
+        Средняя маслоемкость наполнения: {self.maslo}
+        Укрывистость пигментов: {self.hiding}"""
+
 
 class Hardeners(Component):
     def __init__(self, name, mass):
@@ -2280,6 +2362,14 @@ class Hardeners(Component):
             self.mass_for_params = Decimal('0')  # для расчета окп кокп СП
         self.density_solvent = Decimal(self.db.get_info_reactive('Hardener', self.name, 'density_solvent')[0][0].replace(",", "."))
         self.dry_mass = Decimal(mass.replace(",", ".")) * self.suhoi
+
+    def to_string(self):
+        return f"""Отвердитель:
+           Цена: {self.price}
+           Плотность: {self.density}
+           Плотность сухого компонента: {self.density_dry}
+           Плотность растворителя: {self.density_solvent}
+           Массовая доля нелетучих веществ: {self.suhoi}"""
 
 
 class CountAdditiveWindow(QtWidgets.QWidget):
@@ -2494,7 +2584,7 @@ class CountAdditiveWindow(QtWidgets.QWidget):
         elif self.type == "Cиккатив":
             self.count_sickative()
         else:
-            print(self.type)
+            # print(self.type)
             InfoWindow("Укажите название имеющейся функциональной добавки").exec()
 
 

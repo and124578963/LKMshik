@@ -11,7 +11,7 @@ from common.ui_elements import HoverableButton, CustomListItem, generate_font, C
     get_v_spacer
 from component_card import CustomEntry
 from newReactives import DarkBtn_Ui, InfoWindow, MyComponentsUi
-from recepture import ReceptureWindow
+from recepture import ReceptureWindow, ReceptureDataModel
 
 
 class Projects_Ui(object):
@@ -243,7 +243,6 @@ class Projects_Ui(object):
                 dialog.show()
 
 
-
 class ProjectToolButton(QtWidgets.QPushButton):
     hover = QtCore.pyqtSignal(str)
 
@@ -316,8 +315,6 @@ class Iteration(QtWidgets.QWidget):
         self.del_iter_btn.clicked.connect(self.del_iter)
         self.horizontalLayout_3.addWidget(self.del_iter_btn)
 
-
-
         spacerItem1 = QtWidgets.QSpacerItem(40, 20, QtWidgets.QSizePolicy.Policy.Expanding,
                                             QtWidgets.QSizePolicy.Policy.Minimum)
         self.horizontalLayout_3.addItem(spacerItem1)
@@ -353,8 +350,6 @@ class Iteration(QtWidgets.QWidget):
                                             QtWidgets.QSizePolicy.Policy.Minimum)
         self.loyout.addItem(spacerItem2)
 
-
-
     def get_list_recepture_names(self):
         with SqliteDict('saves/' + self.project + '/' + self.name) as mydict:
             self.iter_data = dict(mydict)
@@ -373,7 +368,7 @@ class Iteration(QtWidgets.QWidget):
                                           "Название:", QLineEdit.EchoMode.Normal,
                                           "")
         if ok and name_recepture:
-            dialog = ReceptureWindow(self.project, self.name, name_recepture, project_window=Projects_Ui.instance)
+            dialog = ReceptureWindow(self.project, self.name, name_recepture, project_window=Projects_Ui.instance, is_new=True)
             self.dialogs.append(dialog)
             dialog.show()
 
@@ -384,6 +379,8 @@ class Recepture(QtWidgets.QFrame):
         super(Recepture, self).__init__(parent=parent)
         self.setFocusPolicy(Qt.FocusPolicy.ClickFocus | Qt.FocusPolicy.NoFocus)
         self.data = data
+        self.data_model = ReceptureDataModel(project, iter, name)
+        self.data_model.load_data()
         self.name = name
         self.project = project
         self.iter = iter
@@ -413,6 +410,18 @@ class Recepture(QtWidgets.QFrame):
         self.horizontalLayout_5 = QtWidgets.QHBoxLayout(self.nameArea)
         self.horizontalLayout_5.setObjectName("horizontalLayout_5")
         self.horizontalLayout_5.setContentsMargins(0,0,0,0)
+
+
+        color:str = self.data_model.recepture_color
+        alfa = color[1:3]
+
+        if alfa.upper() != "00":
+            color = "#FF" + color[3:]
+            self.color_img = QtWidgets.QLabel(parent=self.nameArea)
+            image = QtGui.QPixmap(generate_color(self.data_model.recepture_color))
+            self.color_img.setPixmap(image)
+            self.horizontalLayout_5.addWidget(self.color_img)
+            self.color_img.setMaximumSize(16,16)
         self.label_name = QtWidgets.QLabel(parent=self.nameArea)
         self.label_name.setText(name)
         self.label_name.setFont(generate_font(12))
@@ -435,7 +444,7 @@ class Recepture(QtWidgets.QFrame):
         self.vertical_comp_loyout.setObjectName("gridLayout")
         self.vertical_comp_loyout.setContentsMargins(0,0,0,5)
         self.vertical_comp_loyout.setSpacing(1)
-        for name, amount in zip(self.data[0], self.data[1]):
+        for name, amount in self.data_model.component_list:
             if name.strip() != '':
                 self.add_component(name, amount)
         self.g_loyout.addWidget(self.consist)
@@ -451,9 +460,9 @@ class Recepture(QtWidgets.QFrame):
         self.vertical_exp_loyout = QtWidgets.QVBoxLayout(self.ecsperiment)
         self.vertical_exp_loyout.setContentsMargins(0,7,0,0)
         self.vertical_exp_loyout.setSpacing(1)
-        for param, value in zip(self.data[2], self.data[3]):
+        for param, _, value, status in self.data_model.experiment_list:
             if param.strip() != '':
-                self.add_experiment(param, value)
+                self.add_experiment(param, value, status)
         self.g_loyout.addWidget(self.ecsperiment)
 
     def add_component(self, name, value):
@@ -482,7 +491,7 @@ class Recepture(QtWidgets.QFrame):
         row_l.addWidget(lable_a, alignment=QtCore.Qt.AlignmentFlag.AlignRight)
         self.row += 1
 
-    def add_experiment(self, name, value):
+    def add_experiment(self, name, value, status):
         if len(name) > 30:
             name = name[0:29] + "..."
 
@@ -493,8 +502,19 @@ class Recepture(QtWidgets.QFrame):
                     QFrame#row_c{
                     border-bottom: 1px solid #eee;
                     border-radius: 2px;
-                    background: #fafafa;;
+                    background: #fafafa;
+                    font-weight: 600;
+                    
                     }
+                    QLabel#lable_v_good{
+                    color: green;
+                    font-weight: 600;
+                    }
+                    QLabel#lable_v_bad{
+                    color: red;
+                    font-weight: 600;
+                    }
+                    
                 """)
 
 
@@ -506,6 +526,13 @@ class Recepture(QtWidgets.QFrame):
         lable_p.setText(name)
         row_l.addWidget(lable_p)
         lable_v = QtWidgets.QLabel(parent=row_w)
+        if int(status) == 1:
+            lable_v.setObjectName("lable_v_good")
+        elif int(status) == -1:
+            lable_v.setObjectName("lable_v_bad")
+        else:
+            lable_v.setObjectName("lable_v_norm")
+
         lable_v.setText(value)
         row_l.addWidget(lable_v, alignment=QtCore.Qt.AlignmentFlag.AlignRight)
         self.row_p += 1
@@ -842,6 +869,7 @@ class AddProjectWindow(QtWidgets.QWidget):
             image = QtGui.QPixmap(generate_color(argb))
             self.color_img.setPixmap(image)
             self.project_color = argb
+
 
 class EditProjectWindow(AddProjectWindow):
 
