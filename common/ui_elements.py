@@ -340,7 +340,6 @@ class CustomListItem(QtWidgets.QListView):
         self.setCurrentIndex(self.listModel.index(index))
 
 
-
 class MplCanvas(FigureCanvasQTAgg):
     def __init__(self, parent=None, width=5, height=4, dpi=90):
         self.fig = Figure(figsize=(width, height), dpi=dpi)
@@ -358,6 +357,7 @@ class MplCanvas(FigureCanvasQTAgg):
         # print(x, a, b, c)
         return a * np.float_power(x, 4) + b * np.float_power(x, 3) + c * np.float_power(x, 2) \
                + d * np.float_power(x, 1) + e
+
 
 
 class ChoiceColor(QtWidgets.QWidget):

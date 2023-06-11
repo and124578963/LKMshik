@@ -603,6 +603,7 @@ class DB:
 
     @connect_db_decorator
     def get_info_reactive(self, group, name, values):
+        # print(f'''SELECT {values} FROM {group} WHERE LOWER(DECODE(Name)) LIKE LOWER(?)''')
         self.c.execute(f'''SELECT {values} FROM {group} WHERE LOWER(DECODE(Name)) LIKE LOWER(?)''', [name])
         fetchall = self.c.fetchall()
         decode_fetchall = []

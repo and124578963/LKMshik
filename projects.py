@@ -1,5 +1,9 @@
+import logging
 import os
 import shutil
+import traceback
+from decimal import Decimal
+from typing import List
 
 from PyQt6 import QtCore, QtGui, QtWidgets
 from PyQt6.QtCore import QStringListModel, Qt, QSize
@@ -8,7 +12,7 @@ from sqlitedict import SqliteDict
 
 from common.secrets import Secrets
 from common.ui_elements import HoverableButton, CustomListItem, generate_font, ColorButton, generate_color, ChoiceColor, \
-    get_v_spacer
+    get_v_spacer, MplCanvas, create_w_lo, CustomCombobox, get_h_spacer, delete_chield, normalize_number
 from component_card import CustomEntry
 from newReactives import DarkBtn_Ui, InfoWindow, MyComponentsUi
 from recepture import ReceptureWindow, ReceptureDataModel
@@ -290,7 +294,7 @@ class Iteration(QtWidgets.QWidget):
         self.project = project
         self.name = name
         self.dialogs = []
-
+        self.graf_window = None
         self.vertical_loyout = QtWidgets.QVBoxLayout(self)
         self.iteration_toolbar = QtWidgets.QWidget(self)
         self.iteration_toolbar.setContentsMargins(0,15,0,5 )
@@ -308,6 +312,7 @@ class Iteration(QtWidgets.QWidget):
         self.horizontalLayout_3.addWidget(self.iter_name)
 
         self.graph_iter_btn = ProjectToolButton(self.iteration_toolbar, "graph")
+        self.graph_iter_btn.clicked.connect(lambda : self.open_graf_window())
         self.graph_iter_btn.show()
         self.horizontalLayout_3.addWidget(self.graph_iter_btn)
         self.del_iter_btn = ProjectToolButton(self.iteration_toolbar, "del")
@@ -330,7 +335,7 @@ class Iteration(QtWidgets.QWidget):
 
         list_size = []
         for r_name in self.list_recepture_names:
-            recepture = Recepture(self.iter, self.project, self.name, r_name, self.iter_data[r_name])
+            recepture = Recepture(self.iter, self.project, self.name, r_name)
             self.list_recepture_obj.append(recepture)
             self.loyout.addWidget(recepture)
             list_size.append(recepture.get_size())
@@ -372,13 +377,18 @@ class Iteration(QtWidgets.QWidget):
             self.dialogs.append(dialog)
             dialog.show()
 
+    def open_graf_window(self):
+        if self.graf_window is None:
+            list_data_model = list((i.data_model for i in self.list_recepture_obj))
+
+            self.graf_window = DrawGraf(self, list_data_model)
+            self.graf_window.show()
+
 
 class Recepture(QtWidgets.QFrame):
-
-    def __init__(self, parent, project, iter, name, data):
+    def __init__(self, parent, project, iter, name):
         super(Recepture, self).__init__(parent=parent)
         self.setFocusPolicy(Qt.FocusPolicy.ClickFocus | Qt.FocusPolicy.NoFocus)
-        self.data = data
         self.data_model = ReceptureDataModel(project, iter, name)
         self.data_model.load_data()
         self.name = name
@@ -961,3 +971,162 @@ class EditProjectWindow(AddProjectWindow):
     def closeEvent(self, event):
         AddProjectWindow.instance = None
 
+
+class DrawGraf(QtWidgets.QWidget):
+    def __init__(self, parent:Iteration, list_receprure_obj: List[ReceptureDataModel]):
+        super(DrawGraf, self).__init__()
+        self.parent_obj = parent
+        self.list_receptures = list_receprure_obj
+        self.list_x_items = []
+        self.list_y_items = []
+        self.list_component_name = []
+        self.list_params_name = list(list_receprure_obj[0].get_count_dict().keys())
+        self.list_params_name.sort()
+
+        self.setWindowTitle("Построить графики")
+        self.setObjectName("window_w")
+        self.resize(600, 400)
+        self.verticalLayout = QtWidgets.QVBoxLayout(self)
+        self.verticalLayout.setSpacing(0)
+
+        self.plot_w, self.plot_lo = create_w_lo(self, self.verticalLayout)
+        self.plot = MplCanvas(self.plot_w)
+        self.plot_lo.addWidget(self.plot)
+        self.plot_lo.addItem(get_v_spacer())
+
+        w, lo = create_w_lo(self, self.verticalLayout)
+        label_x = QtWidgets.QLabel(w)
+        label_x.setText("Ось X:")
+        lo.addWidget(label_x)
+        self.combobox_x = CustomCombobox(w)
+        self.combobox_x.setMaximumSize(200, 20)
+        lo.addWidget(self.combobox_x)
+        plot_btn = ColorButton(w, color="blue")
+        plot_btn.setText("Построить график")
+        plot_btn.clicked.connect(lambda: self.draw_graf())
+        lo.addWidget(plot_btn)
+        lo.addItem(get_h_spacer())
+
+        w, lo = create_w_lo(self, self.verticalLayout)
+        label_y = QtWidgets.QLabel(w)
+        label_y.setText("Ось Y:")
+        lo.addWidget(label_y)
+        self.combobox_y = CustomCombobox(w)
+        self.combobox_y.setMaximumSize(200, 20)
+        lo.addWidget(self.combobox_y)
+        clear_plot_btn = ColorButton(w, color="blue")
+        clear_plot_btn.setText("Очистить график")
+        clear_plot_btn.clicked.connect(lambda: self.clear())
+        lo.addWidget(clear_plot_btn)
+        lo.addItem(get_h_spacer())
+
+        self.collect_combobox_items()
+
+    def collect_combobox_items(self):
+        list_component_name = []
+        list_experiment_name = []
+        for recepture in self.list_receptures:
+            for comp in recepture.component_list:
+                list_component_name.append(comp[0].strip())
+            for comp in recepture.component_list_2:
+                list_component_name.append(comp[0].strip())
+
+            for exp in recepture.experiment_list:
+                list_experiment_name.append(exp[0])
+
+        set_component_names = set(list_component_name)
+        set_component_names.discard("")
+        self.list_component_name = list(set_component_names)
+        list_component_name.sort()
+        self.list_x_items = self.list_params_name + self.list_component_name
+        self.combobox_x.addItems(self.list_x_items)
+
+        set_experiment_name = set(list_experiment_name)
+        list_experiment_name = list(set_experiment_name)
+        list_experiment_name.sort()
+        self.combobox_y.addItems(list_experiment_name)
+
+    def draw_graf(self):
+        axe_x = self.combobox_x.text()
+        axe_y = self.combobox_y.text()
+        if axe_x.strip() == "" or axe_y.strip() == "":
+            logging.info(f"Выбраны пустые оси: x {axe_x}, y {axe_y}")
+            return
+
+        axe_x_data = []
+        if axe_x in self.list_component_name:
+            for recepture in self.list_receptures:
+                recepture: ReceptureDataModel
+                component_list = recepture.component_list + recepture.component_list_2
+                component = list(filter(lambda x: x[0].strip() == axe_x.strip(), component_list))
+                if len(component) > 0:
+                    component_mass = component[0][1]
+                else:
+                    component_mass = None
+                axe_x_data.append(component_mass)
+        elif axe_x in self.list_params_name:
+            for recepture in self.list_receptures:
+                value = self.map_param_value(recepture, axe_x)
+                axe_x_data.append(value)
+        else:
+            logging.error(f"Неизвестная ось Х: {axe_x}")
+            return
+
+        axe_y_data = []
+        for recepture in self.list_receptures:
+            recepture: ReceptureDataModel
+
+            experiment_list = recepture.experiment_list
+            experiment = list(filter(lambda x: x[0].strip() == axe_y.strip(), experiment_list))
+
+            if len(experiment) > 0:
+                experiment_value = experiment[0][2]
+            else:
+                experiment_value = None
+            axe_y_data.append(experiment_value)
+
+
+        list_x_y = list(filter(lambda xy: xy[0] is not None and xy[1] is not None, zip(axe_x_data, axe_y_data)))
+
+        list_result = []
+        for x, y in list_x_y:
+            try:
+                x = float(x.replace(",", ".").strip())
+                y = float(y.replace(",", ".").strip())
+                list_result.append((x, y))
+            except:
+                logging.info(f"X или Y не числа: x {x}; y {y}")
+                continue
+
+        if len(list_result) == 0:
+            logging.info(f"Список координат пуст для построения графика")
+            return
+
+        list_result.sort(key=lambda xy: xy[0])
+        list_of_x, list_of_y = zip(*list_result)
+
+        self.plot.axes.plot(list_of_x, list_of_y, label=f"{self.combobox_x.text()} - {self.combobox_y.text()}")
+        self.plot.axes.legend(loc='upper right', frameon=False)
+        self.plot.axes.grid(linestyle='--')
+        self.plot.axes.set(xlabel=self.combobox_x.text())
+        self.plot.draw()
+
+    def map_param_value(self, recepture: ReceptureDataModel, name_param: str) -> str:
+        map_dict_param = recepture.get_count_dict()
+        result = map_dict_param.get(name_param, None)
+
+        if isinstance(result, Decimal):
+            result = normalize_number(result)
+        elif isinstance(result, float):
+            result = str(result)
+
+        return result
+
+    def clear(self):
+        delete_chield(self.plot_lo)
+        self.plot = MplCanvas(self.plot_w)
+        self.plot_lo.addWidget(self.plot)
+        self.plot_lo.addItem(get_v_spacer())
+
+    def closeEvent(self, a0: QtGui.QCloseEvent) -> None:
+        self.parent_obj.graf_window = None

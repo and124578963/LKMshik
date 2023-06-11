@@ -1,16 +1,21 @@
 import copy
 import logging
 import os
+import shutil
 import traceback
 from collections import Counter
 from decimal import Decimal
 from functools import reduce
+from textwrap import wrap
+
+import docx
+from win32com import client
 
 import numpy as np
 from PyQt6 import QtCore, QtGui, QtWidgets
 from PyQt6.QtCore import Qt, QRegularExpression, QSize
 from PyQt6.QtGui import QRegularExpressionValidator
-from PyQt6.QtWidgets import QCompleter, QInputDialog, QLineEdit
+from PyQt6.QtWidgets import QCompleter, QInputDialog, QLineEdit, QFileDialog
 from sqlitedict import SqliteDict
 
 from common.secrets import Secrets
@@ -476,6 +481,7 @@ class ReceptureWindow(QtWidgets.QWidget):
         save_as_btn.clicked.connect(lambda: self.save(save_as=True))
         horizontalLayout_3.addWidget(save_as_btn)
         word_btn = HoverableButton(toolbar, "word", (20,20))
+        word_btn.clicked.connect(lambda: self.save_word())
         horizontalLayout_3.addWidget(word_btn)
 
         spacerItem = QtWidgets.QSpacerItem(40, 20, QtWidgets.QSizePolicy.Policy.Expanding,
@@ -572,6 +578,12 @@ class ReceptureWindow(QtWidgets.QWidget):
         self.name_recepture.setText(new_name)
         self.recepture_data.save(save_as=(iter, new_name))
         self.project_window.select_project(self.project)
+
+    def save_word(self):
+        self.collect_rows_data()
+        self.collect_exp_data()
+        self.collect_note()
+        WordExport(self.recepture_data)
 
     def delete(self):
         if InfoWindow(f"Вы уверены, что хотите удалить \nрецептуру: {self.name}").exec():
@@ -1346,6 +1358,7 @@ class ReceptureDataModel:
             result = byte
         return result
 
+#TODO: Сохранять категории и загружать
     def load_data(self):
         with SqliteDict('saves/' + self.project + '/params') as mydict:
             enc_data_params = mydict['params']
@@ -1384,13 +1397,17 @@ class ReceptureDataModel:
             list_comments_2 = configs.get("list_comments_2", ["$None" for _ in self.data[0]])
             self.list_comments = list(map(self.map_decrypt, list_comments))
             self.list_comments_2 = list(map(self.map_decrypt, list_comments_2))
+            self.okp_kokp = configs.get("okp_kokp", Decimal(0))
+            self.volume_suhoi = configs.get("volume_suhoi", Decimal(0))
         else:
             self.price_K = 1.0
-            self.accurate_density =0.0
+            self.accurate_density = 0.0
             self.list_experiment_status = [0 for _ in self.data[2]]
             self.recepture_color = "#00ffffff"
             self.list_comments = ["$None" for _ in self.data[0]]
             self.list_comments_2 = ["$None" for _ in self.data[0]]
+            self.okp_kokp = Decimal(0)
+            self.volume_suhoi = Decimal(0)
 
         for i, param in enumerate(self.data):
             self.data[i] = list(map(self.map_decrypt, param))
@@ -1485,7 +1502,7 @@ class ReceptureDataModel:
             self.philum,
             self.kokp,
             self.hiding_wet,
-            self.density,
+            self.get_density(),
         ]
 
         dict_params['price_K'] = self.price_K
@@ -1494,7 +1511,8 @@ class ReceptureDataModel:
         dict_params["recepture_color"] = self.recepture_color
         dict_params["list_comments"] = list(map(self.map_encrypt, list_comments))
         dict_params["list_comments_2"] = list(map(self.map_encrypt, list_comments_2))
-
+        dict_params["okp_kokp"] = self.okp_kokp
+        dict_params["volume_suhoi"] = self.volume_suhoi
 
         with SqliteDict('saves/' + self.project + '/' + self.iteration) as mydict:
 
@@ -1518,6 +1536,26 @@ class ReceptureDataModel:
         with SqliteDict('saves/' + self.project + '/' + self.iteration) as mydict:
             mydict.pop(self.name)
             mydict.commit()
+
+    def get_count_dict(self) -> dict:
+        recepture = self
+        map_dict_param = {
+            "Цена": recepture.price,
+            "Маслоемкость 1-го рода": recepture.oil,
+            "Масс.д.н.в": recepture.suhoi,
+            "Объем.д.н.в": recepture.volume_suhoi,
+            "ОКП": recepture.okp,
+            "КОКП": recepture.kokp,
+            "ОКП/КОКП": recepture.okp_kokp,
+            "Укрывистость пигментов": recepture.hiding_pigm,
+            "Укрывистость мокрой пленки": recepture.hiding_wet,
+            "Укрывистость сухой пленки": recepture.hiding_dry,
+            "Филум пигментов": recepture.philum,
+            "Плотность": recepture.get_density(),
+            "Степень пигментирования": recepture.degree_pigm,
+            "Константа наполнения": recepture.const_pigm,
+        }
+        return map_dict_param
 
     def count_mass(self, all=False) -> Decimal:
         components, _ = self.get_actual_data_for_count(all=all)
@@ -1649,6 +1687,7 @@ class ReceptureDataModel:
         all_price *= Decimal(self.price_K)
 
         self.price = all_price
+        print(f"цена {self.price}")
 
     def all_mass_for_suhoi_f(self):
         all_mass = Decimal(0)
@@ -3110,7 +3149,6 @@ class CountReceptureConstant(QtWidgets.QWidget):
         self.verticalLayout_2.addItem(get_v_spacer())
         self.horizontalLayout.addWidget(self.plot_w)
 
-
         self.result_w = QtWidgets.QWidget(parent=self)
         self.result_w.setObjectName("ResultW")
         self.result_w.setStyleSheet("""
@@ -3623,4 +3661,153 @@ class SaveAsWindow(QtWidgets.QWidget):
         self.destroy()
 
 
+class WordExport:
+    def __init__(self, data_model: ReceptureDataModel):
+            self.data_model = data_model
+            self.db = DB()
+            self.name = self.data_model.name.strip()
+            self.component_list = self.get_components_list()
+            self.experiment_list = self.data_model.experiment_list
+            self.note = self.data_model.notes
+            self.mass = self.data_model.mass
+            count_dict = self.data_model.get_count_dict()
+            count_names = list(count_dict.keys())
+            count_names.sort()
 
+
+
+
+            dialog = QFileDialog()
+            dialog.setWindowTitle("Выберите папку для сохранения")
+            dialog.setFileMode(QFileDialog.FileMode.Directory)
+            dialog.setOptions(QFileDialog.Option.DontUseNativeDialog)
+            if dialog.exec():
+                new_file = dialog.selectedFiles()[0]
+                new_file = f"{new_file}\\{self.name}.docx"
+            else:
+                return
+
+            forma = 'files\\forma.docx'
+            shutil.copy2(forma, new_file)
+            # new_file = os.path.abspath(f'documents\{self.name}.docx')
+
+            word = client.gencache.EnsureDispatch('Word.Application')
+            doc = word.Documents.Open(new_file)
+            table = doc.Tables(2)  # создаем строки в  таблице компонентов
+            for i in range(len(self.component_list) + 1):
+                table.Rows.Add()
+
+            table = doc.Tables(3)  # создаем строки в экспериментальной таблице
+            for i in range(len(self.experiment_list)):
+                table.Rows.Add()
+
+            table = doc.Tables(4)  # создаем строки в расчетной таблице
+            for i in range(len(count_names)):
+                table.Rows.Add()
+
+            doc.Close(True)
+            word.Application.Quit()
+
+            doc = docx.Document(new_file)
+
+            doc.paragraphs[0].add_run(self.name)
+            tables = doc.tables
+
+            # заполняем таблицу данными
+            for row in range(len(self.component_list)):
+                # получаем ячейку таблицы
+                cell = tables[1].cell(row + 1, 0)
+                # записываем в ячейку данные
+                cell.text = self.component_list[row][0]
+
+                cell = tables[1].cell(row + 1, 1)
+                # записываем в ячейку данные
+                cell.text = self.component_list[row][1]
+
+            cell = tables[1].cell(row + 2, 0)
+            cell.text = "Итого:"
+            cell = tables[1].cell(row + 2, 1)
+            cell.text = str(self.mass).replace('.', ',')
+
+            for row in range(len(self.experiment_list)):
+                # получаем ячейку таблицы
+                cell = tables[2].cell(row + 1, 0)
+                # записываем в ячейку данные
+                cell.text = self.experiment_list[row][0]
+
+                cell = tables[2].cell(row + 1, 2)
+                # записываем в ячейку данные
+                cell.text = self.experiment_list[row][1]
+
+                cell = tables[2].cell(row + 1, 1)
+                # записываем в ячейку данные
+                cell.text =  self.experiment_list[row][2]
+
+            for row in range(len(count_names)):
+                # получаем ячейку таблицы
+                cell = tables[3].cell(row + 1, 0)
+                # записываем в ячейку данные
+                cell.text = count_names[row]
+                value = count_dict[count_names[row]]
+                if isinstance(value, Decimal):
+                    value = normalize_number(value)
+                if isinstance(value, float):
+                    value = str(round(value, 2)).replace(".", ",")
+
+                if count_names[row] == "Степень пигментирования":
+                    cell = tables[3].cell(row + 1, 1)
+                    # записываем в ячейку данные
+                    cell.text = value + " : 1"
+                else:
+                    cell = tables[3].cell(row + 1, 1)
+                    # записываем в ячейку данные
+                    cell.text = value
+
+            cell = tables[0].cell(0, 0)
+            note = '\n'.join(wrap(self.note, 25))
+            cell.text = 'Заметки:\n' + note
+
+            doc.save(new_file)
+            os.startfile(new_file)
+
+    def get_components_list(self):
+        components_list = self.data_model.component_list
+        category_list = self.data_model.category_list
+        if self.data_model.flag_2k:
+            components_list += self.data_model.component_list_2
+            category_list += self.data_model.category_list_2
+
+        normalize_components_list = []
+        for component in components_list:
+            if isinstance(component, str):
+                comment = component
+                normalize_components_list.append((comment, ""))
+            else:
+                normalize_components_list.append(component)
+        components_list = normalize_components_list
+
+
+        if InfoWindow("Заменить названия компонентов \nна шифр?").exec():
+            coded_components_list = []
+            for component, category in zip(components_list, category_list):
+
+                name = component[0]
+                mass = component[1]
+                if category.strip() != "":
+                    code = self.db.get_info_reactive(category, name, 'code')
+                    if len(code) > 0:
+                        code = code[0][0]
+                    else:
+                        code = name
+                else:
+                    code = name
+                coded_components_list.append((code, mass))
+
+            components_list = coded_components_list
+
+        return components_list
+
+
+
+    def save(self):
+        pass
