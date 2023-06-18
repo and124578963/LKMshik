@@ -385,7 +385,10 @@ class CustomListItem(QtWidgets.QListView):
     def change_selected(self, name):
         name = 'Тарировочные кривые' if name == "Тарировочные_кривые" else name
         self.reset()
-        index = self.list_strings.index(name)
+        if name in self.list_strings:
+            index = self.list_strings.index(name)
+        else:
+            index = -1
         self.setCurrentIndex(self.listModel.index(index))
 
 
@@ -538,7 +541,7 @@ class ChoiceColor(QtWidgets.QWidget):
 
     @staticmethod
     def get_RAL_list():
-        with open('common/RALcolor', 'r') as ral_file:
+        with open('files/RALcolor', 'r') as ral_file:
             ral_str = ral_file.read().split("\n")
             list_ral = []
             for line in ral_str:

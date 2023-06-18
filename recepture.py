@@ -30,7 +30,6 @@ from common.settings import get_suhoi_type, update_config_param
 from skimage import color as color_kit
 
 
-
 class ReceptureWindow(QtWidgets.QWidget):
 
     def __init__(self, project_name: str, iter_name: str, name: str, project_window=None, is_new=False):
@@ -40,7 +39,7 @@ class ReceptureWindow(QtWidgets.QWidget):
         self.iter = iter_name
         self.name = name
         self.db = DB()
-        self.setWindowTitle(f"{self.project} - {self.iter} - {self.name}")
+        self.saved_f = True
         self.recepture_data = ReceptureDataModel(project_name, iter_name, name)
         self.recepture_data.load_data()
         self.settings_window = None
@@ -106,7 +105,7 @@ class ReceptureWindow(QtWidgets.QWidget):
         self.verticalLayout.setContentsMargins(0,0,0,0)
         self.verticalLayout.setSpacing(2)
 
-        self.component_one = Ui_Component(self.recepture, self.recepture_data)
+        self.component_one = Ui_Component(self.recepture, self.recepture_data, self.set_unsaved)
         # self.component_one.setGeometry(QtCore.QRect(0, 0, 403, 485))
         # self.component_one.setObjectName("recepture")
         # self.component_one_l = QtWidgets.QVBoxLayout(self.recepture)
@@ -129,7 +128,7 @@ class ReceptureWindow(QtWidgets.QWidget):
         self.verticalLayout.addWidget(self.component_one)
         self.verticalLayout.addWidget(self.buttons)
 
-        self.component_two = Ui_Component(self.recepture, self.recepture_data)
+        self.component_two = Ui_Component(self.recepture, self.recepture_data, self.set_unsaved)
         # self.component_two.setGeometry(QtCore.QRect(0, 0, 403, 485))
         # self.component_two.setObjectName("recepture")
         # self.component_two_l = QtWidgets.QVBoxLayout(self.component_two)
@@ -444,6 +443,7 @@ class ReceptureWindow(QtWidgets.QWidget):
         self.verticalLayout_5.setContentsMargins(9, 0, 9, 9)
         self.description = QtWidgets.QTextEdit(parent=self.description_tab)
         self.description.setText(self.recepture_data.notes)
+        self.description.textChanged.connect(lambda: self.set_unsaved())
         self.verticalLayout_5.addWidget(self.description)
         self.tabWidget.addTab(self.description_tab, "Заметки")
         self.verticalLayout_3.addWidget(self.tabWidget)
@@ -452,9 +452,15 @@ class ReceptureWindow(QtWidgets.QWidget):
         if not is_new:
             self.count_mass()
 
+        self.saved_f = True
+        self.setWindowTitle(f"{self.project} - {self.iter} - {self.name}")
+
     def closeEvent(self, event):
         Ui_Component.list_obj.remove(self.component_one)
         Ui_Component.list_obj.remove(self.component_two)
+        if not self.saved_f:
+            if InfoWindow("Есть несохраненные изменения. Сохранить?").exec():
+                self.save()
 
     def add_toolbar(self, parent: QtWidgets) -> QtWidgets.QFrame:
         toolbar = QtWidgets.QFrame(parent=parent)
@@ -525,7 +531,7 @@ class ReceptureWindow(QtWidgets.QWidget):
         # self.reset_row_number(_type)
 
     def add_exp_row(self, name, needed, value, state):
-        self.list_experiment_obj.append(ExperimentRow(self.exp_s_area, self.gridLayout_3, name, needed, value, state))
+        self.list_experiment_obj.append(ExperimentRow(self.exp_s_area, self.gridLayout_3, name, needed, value, state, self.set_unsaved))
 
     def reset_row_number(self, _type: str):
         list_obj: List[ComponentRow]
@@ -560,6 +566,10 @@ class ReceptureWindow(QtWidgets.QWidget):
     def collect_note(self):
         self.recepture_data.notes = self.description.toPlainText()
 
+    def set_unsaved(self):
+        self.saved_f = False
+        self.setWindowTitle(f"{self.project} - {self.iter} - {self.name} (Не сохранено)")
+
     def save(self, save_as=None):
         self.collect_rows_data()
         self.collect_exp_data()
@@ -571,18 +581,27 @@ class ReceptureWindow(QtWidgets.QWidget):
 
         else:
             self.recepture_data.save()
+            self.saved_f = True
+            self.setWindowTitle(f"{self.project} - {self.iter} - {self.name}")
             self.project_window.select_project(self.project)
 
     def save_as(self, iter, new_name):
         self.name_recepture.setText(new_name)
+        self.iter = iter
+        self.name = new_name
         self.recepture_data.save(save_as=(iter, new_name))
+        self.saved_f = True
+        self.setWindowTitle(f"{self.project} - {self.iter} - {self.name}")
         self.project_window.select_project(self.project)
 
     def save_word(self):
         self.collect_rows_data()
         self.collect_exp_data()
         self.collect_note()
-        WordExport(self.recepture_data)
+        try:
+            WordExport(self.recepture_data)
+        except Exception as e:
+            logging.error(e, exc_info=True)
 
     def delete(self):
         if InfoWindow(f"Вы уверены, что хотите удалить \nрецептуру: {self.name}").exec():
@@ -597,6 +616,7 @@ class ReceptureWindow(QtWidgets.QWidget):
         mass = self.recepture_data.count_mass(all=True)
         mass = normalize_number(mass)
         self.amount_all_value.setText(mass)
+        self.saved_f = False
 
     def count_all(self):
         self.collect_rows_data()
@@ -695,7 +715,7 @@ class ReceptureWindow(QtWidgets.QWidget):
 
             need_solvent = goal_mass - mass_suhoi
             if need_solvent < 0 or not chech_solvent_exist:
-                InfoWindow("В рецептуре не указаны растворители,\nлибо желаемая масса меньше возможной.").exec()
+                InfoWindow("В рецептуре не указаны растворители,\nлибо желаемая масса меньше возможной.", cancel_f=False).exec()
                 return
 
             for row in solvent_list_obj:
@@ -744,7 +764,7 @@ class ReceptureWindow(QtWidgets.QWidget):
 
             if warehouse_error_check:
                 str_comp = ",\n".join(list_error_comp)
-                InfoWindow(f"Массы не вычтены. Не хватает \nследующих компонентов:\n{str_comp}").exec()
+                InfoWindow(f"Массы не вычтены. Не хватает \nследующих компонентов:\n{str_comp}", cancel_f=False).exec()
                 return
 
             for row, warehouse in actual_list_obj:
@@ -758,7 +778,7 @@ class ReceptureWindow(QtWidgets.QWidget):
                 deffer = warehouse - mass
                 deffer = normalize_number(deffer)
                 self.db.update_warehouse(category, name, deffer)
-            InfoWindow("Остатки реактивов изменены.").exec()
+            InfoWindow("Остатки реактивов изменены.", cancel_f=False).exec()
 
     def open_r_settings(self):
         if self.settings_window is None:
@@ -823,14 +843,16 @@ class ReceptureWindow(QtWidgets.QWidget):
 
         delta_e = self.recepture_data.count_delta_e_color()
         self.delta_e_color_l.setText(f"ΔЕ: {delta_e}")
+        self.set_unsaved()
 
 
 class ComponentRow(QtWidgets.QFrame):
     def __init__(self, parent, _index, name="", amount="", callback_get_list_obj=None, callback_mass=None,
-                 comment="$None"):
+                 comment="$None", unsave_callback = None):
         super(ComponentRow, self).__init__(parent=parent)
         self.callback_mass = callback_mass
         self.db = DB()
+        self.unsave_callback = unsave_callback
         self.category = ""
         self.category_obj = None
         self.callback_get_list_obj = callback_get_list_obj
@@ -887,6 +909,7 @@ class ComponentRow(QtWidgets.QFrame):
         # self.comment.setContentsMargins(32,0,0,0)
         self.comment.setMinimumSize(QtCore.QSize(303, 40))
         self.horizontalLayout_4.addWidget(self.comment)
+        self.comment.textChanged.connect(lambda: self.unsave_callback())
         self.comment.hide()
 
         self.swap = MenuButton(self, "swap", (20, 20))
@@ -904,6 +927,7 @@ class ComponentRow(QtWidgets.QFrame):
             self.comment.setPlainText(comment)
 
     def change_state(self, initial=False):
+        self.unsave_callback()
         if self.flag_comment:
             self.flag_comment = False
             self.category_icon.show()
@@ -955,6 +979,7 @@ class ComponentRow(QtWidgets.QFrame):
             )
 
     def assign_category(self, name):
+        self.unsave_callback()
         text = ""
         tooltip = ""
         if len(self.db.check_group_reactives("Solvents", name)) == 1:
@@ -1058,49 +1083,21 @@ class Ui_Component(QtWidgets.QWidget):
             if i is not None and i is not obj:
                 i.setAcceptDrops(False)
 
-    def __init__(self, parent, recepture_data):
+    def __init__(self, parent, recepture_data, unsave_callback):
         super(Ui_Component, self).__init__(parent=parent)
         self.target = None
+        self.unsave_callback = unsave_callback
         Ui_Component.list_obj.append(self)
         self.setAcceptDrops(False)
         self.list_comp_row_obj = []
-        # self.recepture_data = recepture_data
         self.row = 0
         self.setGeometry(QtCore.QRect(0, 0, 403, 485))
         self.setObjectName("recepture")
-        # self.component_one_l = QtWidgets.QVBoxLayout(self)
-        # self.component_one_l.setContentsMargins(0, 0, 0, 0)
-        # self.component_one_l.setSpacing(2)
 
-        # self.layout = QtWidgets.QHBoxLayout(self)
-        # self.scrollArea = QtWidgets.QScrollArea(self)
-        # self.scrollArea.setWidgetResizable(True)
-        # self.scrollAreaWidgetContents = QtWidgets.QWidget()
         self.gridLayout = QtWidgets.QGridLayout(self)
         self.gridLayout.setSpacing(2)
         self.gridLayout.setContentsMargins(0,0,0,0)
 
-        # self.scrollArea.setWidget(self.scrollAreaWidgetContents)
-        # self.layout.addWidget(self.scrollArea)
-        # for name, value in self.recepture_data.component_list:
-        #     self.add_row("one", name=name, value=value)
-
-        # for i in range(3):
-        #     for j in range(3):
-        #         self.Frame = QtWidgets.QFrame(self)
-        #         self.Frame.setStyleSheet("background-color: white;")
-        #
-        #         self.Frame.setLineWidth(2)
-        #         self.layout = QtWidgets.QHBoxLayout(self.Frame)
-        #         l = QtWidgets.QLabel(parent=self.Frame)
-        #         l.setText(str(i) + str(j))
-        #         Box = QtWidgets.QVBoxLayout()
-        #
-        #         Box.addWidget(self.Frame)
-        #
-        #         self.gridLayout.addLayout(Box, i, j)
-        #         self.gridLayout.setColumnStretch(i % 3, 1)
-        #         self.gridLayout.setRowStretch(j, 1)
 
     def add_row(self, name="", value="", callback_mass=None, comment=None):
         parent = self
@@ -1109,7 +1106,8 @@ class Ui_Component(QtWidgets.QWidget):
 
         _index = len(list_obj)
         row = ComponentRow(parent, _index, name=name, amount=value,
-                           callback_get_list_obj=self.get_list_obj, callback_mass=callback_mass, comment=comment)
+                           callback_get_list_obj=self.get_list_obj, callback_mass=callback_mass, comment=comment,
+                           unsave_callback = self.unsave_callback)
 
         Box = QtWidgets.QVBoxLayout()
         Box.addWidget(row)
@@ -1225,9 +1223,10 @@ class Ui_Component(QtWidgets.QWidget):
 class ExperimentRow:
     row = 2
 
-    def __init__(self, parent, lo: QtWidgets.QGridLayout, name: str, needed: str, value: str, state: int):
+    def __init__(self, parent, lo: QtWidgets.QGridLayout, name: str, needed: str, value: str, state: int, unsave_callback):
         self.name = name
         self.needed = needed
+        self.unsave_callback = unsave_callback
         name_l = QtWidgets.QLabel(parent=parent)
         name_l.setMinimumSize(QtCore.QSize(200, 0))
         name_l.setText(name)
@@ -1242,24 +1241,28 @@ class ExperimentRow:
         self.value = CustomEntry(parent=parent)
         self.value.setMaximumSize(QtCore.QSize(100, 16777215))
         self.value.setText(value)
+        self.value.textChanged.connect(lambda: self.unsave_callback())
         lo.addWidget(self.value, ExperimentRow.row, 2, 1, 1)
 
         number_group = QtWidgets.QButtonGroup(parent)
         self.gray_rb = CustomRadioBtn("grey")
         self.gray_rb.setText("")
         self.gray_rb.setObjectName("gray_rb")
+        self.gray_rb.clicked.connect(lambda: self.unsave_callback())
         number_group.addButton(self.gray_rb)
         lo.addWidget(self.gray_rb, ExperimentRow.row, 4, 1, 1)
 
         self.green_rb = CustomRadioBtn("green")
         self.green_rb.setText("")
         self.green_rb.setObjectName("green_rb")
+        self.green_rb.clicked.connect(lambda: self.unsave_callback())
         number_group.addButton(self.green_rb)
         lo.addWidget(self.green_rb, ExperimentRow.row, 3, 1, 1)
 
         self.red_rb = CustomRadioBtn("red")
         self.red_rb.setText("")
         self.red_rb.setObjectName("red_rb")
+        self.red_rb.clicked.connect(lambda: self.unsave_callback())
         number_group.addButton(self.red_rb)
         lo.addWidget(self.red_rb, ExperimentRow.row, 5, 1, 1)
 
@@ -1287,13 +1290,14 @@ class ReceptureDataModel:
         self.project = project
         self.iteration = iteration
         self.name = name
+
         self.not_encoded_projects = ['Тарировочные_кривые', 'Тарировочные кривые', 'Примеры']
 
         self.project_params = []
         self.project_params_value = []
         self.project_color = "#00ffffff"
         self.recepture_color = "#00ffffff"
-        self.password = ""
+        self.password = Secrets.password
 
         self.component_list = [("", "") for _ in range(7)]
         self.list_comments = ["$None" for _ in range(7)]
@@ -1335,7 +1339,7 @@ class ReceptureDataModel:
             return self.density
 
     def map_encrypt(self, str):
-        global password
+        password = Secrets.password
         if self.project not in self.not_encoded_projects and str != "$None":
             result = Secrets().symmetric_encrypt(str.encode(), password)
         else:
@@ -1343,6 +1347,7 @@ class ReceptureDataModel:
         return result
 
     def map_decrypt(self, byte):
+        password = Secrets.password
         if self.project not in self.not_encoded_projects and byte != "$None":
             result = Secrets().symmetric_decrypt(byte, password).decode()
         else:
@@ -1647,15 +1652,14 @@ class ReceptureDataModel:
             try:
                 count_func()
             except Exception as e:
-                # logging.error(e, exc_info=True)
                 info_text = info_text + error_text + "\n"
                 print(traceback.format_exc())
-                # raise e
+                logging.info(e, exc_info=True)
 
         if info_text != "":
             info_text = 'ОШИБКА ПРИ РАСЧЕТЕ! \nПроверьте расчетные значения используемых ' \
                         '\nкомпонентов в Моя лаборатория.\n' + info_text
-            InfoWindow(info_text).exec()
+            InfoWindow(info_text, cancel_f=False).exec()
 
     def count_price(self):
         all_mass = self.mass
@@ -2126,6 +2130,7 @@ class ReceptureSettings(QtWidgets.QWidget):
         super(ReceptureSettings, self).__init__()
         set_window_icon(self)
         self.parent_obj = parent
+        self.parent_obj.saved_f = False
         self.setObjectName("rec_settings")
         self.setStyleSheet("""
         QWidget#rec_settings{
@@ -2634,7 +2639,7 @@ class CountAdditiveWindow(QtWidgets.QWidget):
             self.count_sickative()
         else:
             # print(self.type)
-            InfoWindow("Укажите название имеющейся функциональной добавки").exec()
+            InfoWindow("Укажите название имеющейся функциональной добавки", cancel_f=False).exec()
 
 
     def collect_mass(self) -> Decimal:
@@ -2884,7 +2889,7 @@ class CountHardenerWindow(QtWidgets.QWidget):
         if self.hardener_obj is not None:
             self.count_hardener()
         else:
-            InfoWindow("Укажите название имеющегося отвердителя").exec()
+            InfoWindow("Укажите название имеющегося отвердителя", cancel_f=False).exec()
 
     def collect_film_obj(self) -> List:
         checkbox: QtWidgets.QCheckBox
@@ -2919,7 +2924,7 @@ class CountHardenerWindow(QtWidgets.QWidget):
         if len(error_components) > 1:
             InfoWindow("Ошибка в расчетах! \nПроверьте в базе наличие функциональных групп \nу следующих компонентов:\n"
                        f"{error_components}"
-                       f"И м.д.н.в. у {self.hardener_obj.name}").exec()
+                       f"И м.д.н.в. у {self.hardener_obj.name}", cancel_f=False).exec()
 
         old = self.result_e.text().replace(",", ".")
         if old.strip() in ["", "."]:
@@ -3074,7 +3079,7 @@ class RecountOnMaslo(QtWidgets.QWidget):
         if self.new_comp_obj is not None:
             self.recount_on_maslo()
         else:
-            InfoWindow("Укажите название имеющегося компонента").exec()
+            InfoWindow("Укажите название имеющегося компонента", cancel_f=False).exec()
 
     def collect_comp_obj(self) -> List:
         checkbox: QtWidgets.QCheckBox
@@ -3099,7 +3104,7 @@ class RecountOnMaslo(QtWidgets.QWidget):
 
         if error_f:
             InfoWindow("Ошибка в расчетах! \nПроверьте в базе правильность маслоемкости \n"
-                       f"у{self.new_comp_obj.name}").exec()
+                       f"у{self.new_comp_obj.name}", cancel_f=False).exec()
 
         result = normalize_number(result)
         self.result_e.setText(result)
@@ -3237,133 +3242,115 @@ class CountReceptureConstant(QtWidgets.QWidget):
 
         except Exception as e:
             logging.error(e, exc_info=True)
-            InfoWindow('Для построения кривой необходимо минимум 5 точек.').exec()
+            print(traceback.format_exc())
+            InfoWindow('Для построения кривой необходимо минимум 5 точек.', cancel_f=False).exec()
 
 # TODO: Когда-нибудь можно будет переписать это нормально
     def onclick(self, event):
-        tarir_degree_pigm = Decimal(float(event.xdata)).quantize(Decimal("1.00"), "ROUND_HALF_EVEN")
-        # print(f'tarir_degree_pigm = {tarir_degree_pigm}')
-        tarir_const_nap = tarir_degree_pigm * self.tarir_maslo
-        # print(f'tarir_const_nap = {tarir_const_nap}')
+        try:
+            tarir_degree_pigm = Decimal(float(event.xdata)).quantize(Decimal("1.00"), "ROUND_HALF_EVEN")
+            # print(f'tarir_degree_pigm = {tarir_degree_pigm}')
+            tarir_const_nap = tarir_degree_pigm * self.tarir_maslo
+            # print(f'tarir_const_nap = {tarir_const_nap}')
 
-        current_maslo = self.recepture.recepture_data.oil
-        # print(f'current_maslo = {current_maslo}')
-        new_degree_pigm = tarir_const_nap / current_maslo
-        # print(f'new_degree_pigm = {new_degree_pigm}')
+            current_maslo = self.recepture.recepture_data.oil
+            # print(f'current_maslo = {current_maslo}')
+            new_degree_pigm = tarir_const_nap / current_maslo
+            # print(f'new_degree_pigm = {new_degree_pigm}')
 
-        suhoi = self.recepture.recepture_data.suhoi
+            suhoi = self.recepture.recepture_data.suhoi
 
-        mass_pigms = (new_degree_pigm * suhoi) / (Decimal(1) + new_degree_pigm)
-        mass_films = suhoi - mass_pigms  # масса 100% ПО
-        list_new_reactives = []
-        list_new_mass = []
-        list_new_category = []
-        list_add_mass_film = []
-        list_films = []
+            mass_pigms = (new_degree_pigm * suhoi) / (Decimal(1) + new_degree_pigm)
+            mass_films = suhoi - mass_pigms  # масса 100% ПО
+            list_new_reactives = []
+            list_new_mass = []
+            list_new_category = []
+            list_add_mass_film = []
+            list_films = []
 
-        # начало расчета пигментов
-        old_all_mass_pigms = Decimal(0)
-        for i in self.recepture.recepture_data.list_of_pigment_objects:
-            old_all_mass_pigms += i.mass
-        for i in self.recepture.recepture_data.list_of_filler_objects:
-            old_all_mass_pigms += i.mass
-        for i in self.recepture.recepture_data.list_of_pigmpast_objects:
-            old_all_mass_pigms += i.mass * i.suhoi_pigm
+            # начало расчета пигментов
+            old_all_mass_pigms = Decimal(0)
+            for i in self.recepture.recepture_data.list_of_pigment_objects:
+                old_all_mass_pigms += i.mass
+            for i in self.recepture.recepture_data.list_of_filler_objects:
+                old_all_mass_pigms += i.mass
+            for i in self.recepture.recepture_data.list_of_pigmpast_objects:
+                old_all_mass_pigms += i.mass * i.suhoi_pigm
 
-        for i in self.recepture.recepture_data.list_of_pigment_objects:
-            list_new_reactives.append(i.name)
-            list_new_category.append('Pigments')
-            list_new_mass.append(i.mass * mass_pigms / old_all_mass_pigms)
-        for i in self.recepture.recepture_data.list_of_filler_objects:
-            list_new_reactives.append(i.name)
-            list_new_category.append('Fillers')
-            list_new_mass.append(i.mass * mass_pigms / old_all_mass_pigms)
-        for i in self.recepture.recepture_data.list_of_pigmpast_objects:
-            list_new_reactives.append(i.name)
-            list_new_category.append('PigmPast')
-            list_new_mass.append(i.mass * mass_pigms / old_all_mass_pigms)
-        # конец расчета пигментов
-
-        # начало расчета пленок
-        for i in self.recepture.recepture_data.list_of_pigmpast_objects:  # вычитаем то что уже в пигм пастах
-            mass_films -= i.mass * i.suhoi_film
-
-        old_mass_films = Decimal(0)
-
-        for i in self.recepture.recepture_data.list_of_film_objects:
-            old_mass_films += i.mass
-        for i in self.recepture.recepture_data.list_of_additive_objects:
-            if i.type.lower() == 'пластификатор':
-                old_mass_films += i.mass
-
-        for i in self.recepture.recepture_data.list_of_film_objects:
-            list_new_reactives.append(i.name)
-            list_new_category.append('Films')
-            list_films.append(i.name)
-            new_mass_film = i.mass * mass_films / (
-                    old_mass_films * i.suhoi)
-            list_new_mass.append(new_mass_film)
-            list_add_mass_film.append(
-                (old_all_mass_pigms * new_mass_film / mass_pigms) - i.mass)
-
-        for i in self.recepture.recepture_data.list_of_additive_objects:
-            if i.type.lower() == 'пластификатор':
+            for i in self.recepture.recepture_data.list_of_pigment_objects:
                 list_new_reactives.append(i.name)
+                list_new_category.append('Pigments')
+                list_new_mass.append(i.mass * mass_pigms / old_all_mass_pigms)
+            for i in self.recepture.recepture_data.list_of_filler_objects:
+                list_new_reactives.append(i.name)
+                list_new_category.append('Fillers')
+                list_new_mass.append(i.mass * mass_pigms / old_all_mass_pigms)
+            for i in self.recepture.recepture_data.list_of_pigmpast_objects:
+                list_new_reactives.append(i.name)
+                list_new_category.append('PigmPast')
+                list_new_mass.append(i.mass * mass_pigms / old_all_mass_pigms)
+            # конец расчета пигментов
+
+            # начало расчета пленок
+            for i in self.recepture.recepture_data.list_of_pigmpast_objects:  # вычитаем то что уже в пигм пастах
+                mass_films -= i.mass * i.suhoi_film
+
+            old_mass_films = Decimal(0)
+
+            for i in self.recepture.recepture_data.list_of_film_objects:
+                old_mass_films += i.mass
+            for i in self.recepture.recepture_data.list_of_additive_objects:
+                if i.type.lower() == 'пластификатор':
+                    old_mass_films += i.mass
+
+            for i in self.recepture.recepture_data.list_of_film_objects:
+                list_new_reactives.append(i.name)
+                list_new_category.append('Films')
                 list_films.append(i.name)
-                list_new_category.append('Additives')
                 new_mass_film = i.mass * mass_films / (
                         old_mass_films * i.suhoi)
                 list_new_mass.append(new_mass_film)
                 list_add_mass_film.append(
                     (old_all_mass_pigms * new_mass_film / mass_pigms) - i.mass)
-        # конец расчета пленок
 
-        # print(list_films)
-        # print(list_add_mass_film)
-        check_list = []
-        for i in list_add_mass_film:
-            if int(i) > 0:
-                check_list.append(True)
-            else:
-                check_list.append(False)
+            for i in self.recepture.recepture_data.list_of_additive_objects:
+                if i.type.lower() == 'пластификатор':
+                    list_new_reactives.append(i.name)
+                    list_films.append(i.name)
+                    list_new_category.append('Additives')
+                    new_mass_film = i.mass * mass_films / (
+                            old_mass_films * i.suhoi)
+                    list_new_mass.append(new_mass_film)
+                    list_add_mass_film.append(
+                        (old_all_mass_pigms * new_mass_film / mass_pigms) - i.mass)
+            # конец расчета пленок
 
-        converted_list_new_mass = list(map(normalize_number, list_new_mass))
+            # print(list_films)
+            # print(list_add_mass_film)
+            check_list = []
+            for i in list_add_mass_film:
+                if int(i) > 0:
+                    check_list.append(True)
+                else:
+                    check_list.append(False)
 
-        delete_chield(self.verticalLayout_3)
-        label = QtWidgets.QLabel(self.result_w)
-        label.setText("Результат")
-        label.setFont(generate_font(12, bold=True))
-        self.verticalLayout_3.addWidget(label, alignment=QtCore.Qt.AlignmentFlag.AlignCenter)
+            converted_list_new_mass = list(map(normalize_number, list_new_mass))
 
-        w, lo = create_w_lo(self.result_w, self.verticalLayout_3)
-        label = QtWidgets.QLabel(w)
-        label.setText(f'Выбранная СП: {tarir_degree_pigm}')
-        lo.addWidget(label)
+            delete_chield(self.verticalLayout_3)
+            label = QtWidgets.QLabel(self.result_w)
+            label.setText("Результат")
+            label.setFont(generate_font(12, bold=True))
+            self.verticalLayout_3.addWidget(label, alignment=QtCore.Qt.AlignmentFlag.AlignCenter)
 
-        for reactives, mass in zip(list_new_reactives, converted_list_new_mass):
             w, lo = create_w_lo(self.result_w, self.verticalLayout_3)
             label = QtWidgets.QLabel(w)
-            label.setText(reactives)
+            label.setText(f'Выбранная СП: {tarir_degree_pigm}')
             lo.addWidget(label)
 
-            result_e = CustomEntry(w, padding=False)
-            result_e.setMaximumSize(50, 22)
-            result_e.setReadOnly(True)
-            result_e.setText(mass)
-            lo.addWidget(result_e)
-
-        if all(check_list):
-            w, lo = create_w_lo(self.result_w, self.verticalLayout_3)
-            label = QtWidgets.QLabel(w)
-            label.setText('Если есть готовый образец исходной рецептуры,\n'
-                          'то вы можете на 100г рецептуры добавить:')
-            lo.addWidget(label)
-
-            converted_list_add_mass_film = list(map(normalize_number, list_add_mass_film))
-            for film, mass in zip(list_films, converted_list_add_mass_film):
+            for reactives, mass in zip(list_new_reactives, converted_list_new_mass):
                 w, lo = create_w_lo(self.result_w, self.verticalLayout_3)
                 label = QtWidgets.QLabel(w)
-                label.setText(film)
+                label.setText(reactives)
                 lo.addWidget(label)
 
                 result_e = CustomEntry(w, padding=False)
@@ -3372,9 +3359,33 @@ class CountReceptureConstant(QtWidgets.QWidget):
                 result_e.setText(mass)
                 lo.addWidget(result_e)
 
-        spacerItem = QtWidgets.QSpacerItem(20, 40, QtWidgets.QSizePolicy.Policy.Minimum,
-                                            QtWidgets.QSizePolicy.Policy.Expanding)
-        self.verticalLayout_3.addItem(spacerItem)
+            if all(check_list):
+                w, lo = create_w_lo(self.result_w, self.verticalLayout_3)
+                label = QtWidgets.QLabel(w)
+                label.setText('Если есть готовый образец исходной рецептуры,\n'
+                              'то вы можете на 100г рецептуры добавить:')
+                lo.addWidget(label)
+
+                converted_list_add_mass_film = list(map(normalize_number, list_add_mass_film))
+                for film, mass in zip(list_films, converted_list_add_mass_film):
+                    w, lo = create_w_lo(self.result_w, self.verticalLayout_3)
+                    label = QtWidgets.QLabel(w)
+                    label.setText(film)
+                    lo.addWidget(label)
+
+                    result_e = CustomEntry(w, padding=False)
+                    result_e.setMaximumSize(50, 22)
+                    result_e.setReadOnly(True)
+                    result_e.setText(mass)
+                    lo.addWidget(result_e)
+
+            spacerItem = QtWidgets.QSpacerItem(20, 40, QtWidgets.QSizePolicy.Policy.Minimum,
+                                                QtWidgets.QSizePolicy.Policy.Expanding)
+            self.verticalLayout_3.addItem(spacerItem)
+
+        except Exception as e:
+            logging.error(e, exc_info=True)
+            print(traceback.format_exc())
 
 
 class CountReceptureCombo(CountReceptureConstant):
@@ -3407,138 +3418,141 @@ class CountReceptureCombo(CountReceptureConstant):
         lo.addItem(get_h_spacer())
         lo.setContentsMargins(0, 0, 0, 0)
 
-
     def closeEvent(self, event):
         self.recepture.count_recepture_combo = None
 
     def onclick(self, event):
-        tarir_degree_pigm = Decimal(float(event.xdata)).quantize(Decimal("1.00"), "ROUND_HALF_EVEN")
-        # print('Мы выбрали СП на тарир ' + str(tarir_degree_pigm))
-        # print('Маслоемкость тарировочной кривой ' + str(self.tarir_maslo))
+        try:
+            tarir_degree_pigm = Decimal(float(event.xdata)).quantize(Decimal("1.00"), "ROUND_HALF_EVEN")
+            # print('Мы выбрали СП на тарир ' + str(tarir_degree_pigm))
+            # print('Маслоемкость тарировочной кривой ' + str(self.tarir_maslo))
 
-        hiding_pigm = self.recepture.recepture_data.hiding_pigm
-        tarir_hiding_pigm = self.tarir_hiding_pigm
-        suhoi = Decimal(self.goal_suhoi.text().replace(',', '.'))
-        hiding_lkm = Decimal(self.goal_hiding.text().replace(',', '.'))
+            hiding_pigm = self.recepture.recepture_data.hiding_pigm
+            tarir_hiding_pigm = self.tarir_hiding_pigm
+            suhoi = Decimal(self.goal_suhoi.text().replace(',', '.'))
+            hiding_lkm = Decimal(self.goal_hiding.text().replace(',', '.'))
 
-        # print('Укрывистость пигменты - ' + str(hiding_pigm))
-        mass_pigms = hiding_pigm * Decimal(100) / hiding_lkm
+            # print('Укрывистость пигменты - ' + str(hiding_pigm))
+            mass_pigms = hiding_pigm * Decimal(100) / hiding_lkm
 
-        list_new_reactives = []
-        list_new_mass = []
-        list_new_category = []
-        list_add_mass_film = []
-        list_films = []
+            list_new_reactives = []
+            list_new_mass = []
+            list_new_category = []
+            list_add_mass_film = []
+            list_films = []
 
-        # начало расчета пигментов
-        old_all_mass_pigms = Decimal(0)
-        for i in self.recepture.recepture_data.list_of_pigment_objects:
-            old_all_mass_pigms += i.mass
-        for i in self.recepture.recepture_data.list_of_filler_objects:
-            old_all_mass_pigms += i.mass
-        for i in self.recepture.recepture_data.list_of_pigmpast_objects:
-            old_all_mass_pigms += i.mass * i.suhoi_pigm
+            # начало расчета пигментов
+            old_all_mass_pigms = Decimal(0)
+            for i in self.recepture.recepture_data.list_of_pigment_objects:
+                old_all_mass_pigms += i.mass
+            for i in self.recepture.recepture_data.list_of_filler_objects:
+                old_all_mass_pigms += i.mass
+            for i in self.recepture.recepture_data.list_of_pigmpast_objects:
+                old_all_mass_pigms += i.mass * i.suhoi_pigm
 
-        maslo_pigm = Decimal(0)
-        for i in self.recepture.recepture_data.list_of_pigment_objects:
-            list_new_reactives.append(i.name)
-            list_new_category.append('Pigments')
-            list_new_mass.append(i.mass * mass_pigms / old_all_mass_pigms)
-            maslo_pigm += i.mass * i.maslo / old_all_mass_pigms
-        for i in self.recepture.recepture_data.list_of_pigmpast_objects:
-            list_new_reactives.append(i.name)
-            list_new_category.append('PigmPast')
-            list_new_mass.append(i.mass * mass_pigms / old_all_mass_pigms)
-            maslo_pigm += i.mass * i.suhoi_pigm * i.maslo / old_all_mass_pigms
-        # print('Маслоемкость рассчитываемой рецептуры ' + str(maslo_pigm))
-        # check_hiding_pigm = hiding_pigm < tarir_hiding_pigm
-        # check_maslo_pigm = maslo_pigm < self.tarir_maslo
-        # check_philum = maslo_pigm * hiding_pigm < self.tarir_maslo * self.tarir_hiding_pigm
-        tarir_const_nap = tarir_degree_pigm * self.tarir_maslo
-        # print('Константа наполнения по тарир ' + str(tarir_const_nap))
-        # const_nap = tarir_degree_pigm * maslo_pigm
-        # check_const_nap = const_nap < tarir_const_nap
-        new_degree_pigm = tarir_const_nap / maslo_pigm
-
-        # print('требуемая степень пигментирования ' + str(new_degree_pigm))
-        # print('Масса пигментов ' + str(mass_pigms))
-        mass_fillers = ((new_degree_pigm * suhoi) / (Decimal(1) + new_degree_pigm)) - mass_pigms
-        # print('Масса напонителей ' + str(mass_fillers))
-        if len(self.recepture.recepture_data.list_of_filler_objects) == 2:
-            list_new_reactives.append(self.recepture.recepture_data.list_of_filler_objects[0].name)
-            list_new_category.append('Fillers')
-            mass_1_filler = mass_fillers * (maslo_pigm - self.recepture.recepture_data.list_of_filler_objects[1].maslo) / (
-                        self.recepture.recepture_data.list_of_filler_objects[0].maslo - self.recepture.recepture_data.list_of_filler_objects[1].maslo)
-            list_new_mass.append(mass_1_filler)
-
-            list_new_reactives.append(self.recepture.recepture_data.list_of_filler_objects[1].name)
-            list_new_category.append('Fillers')
-            mass_2_filler = mass_fillers - mass_1_filler
-            list_new_mass.append(mass_2_filler)
-        elif len(self.recepture.recepture_data.list_of_filler_objects) == 1:
-            list_new_reactives.append(self.recepture.recepture_data.list_of_filler_objects[0].name)
-            list_new_category.append('Fillers')
-            list_new_mass.append(mass_fillers)
-        else:
-            list_new_reactives.append('Наполнители')
-            list_new_category.append('Fillers')
-            list_new_mass.append(mass_fillers)
-        # конец расчета пигментов и наполнителей
-
-        mass_films = suhoi - mass_pigms - mass_fillers
-        # начало расчета пленок
-        for i in self.recepture.recepture_data.list_of_pigmpast_objects:  # вычитаем то что уже в пигм пастах
-            mass_films -= i.mass * i.suhoi_film
-
-        old_mass_films = Decimal(0)
-        for i in self.recepture.recepture_data.list_of_film_objects:
-            old_mass_films += i.mass
-        for i in self.recepture.recepture_data.list_of_additive_objects:
-            if i.type.lower() == 'пластификатор':
-                old_mass_films += i.mass
-
-        for i in self.recepture.recepture_data.list_of_film_objects:
-            list_new_reactives.append(i.name)
-            list_new_category.append('Films')
-            new_mass_film = i.mass * mass_films / (
-                    old_mass_films * i.suhoi)
-            list_new_mass.append(new_mass_film)
-
-        for i in self.recepture.recepture_data.list_of_additive_objects:
-            if i.type.lower() == 'пластификатор':
+            maslo_pigm = Decimal(0)
+            for i in self.recepture.recepture_data.list_of_pigment_objects:
                 list_new_reactives.append(i.name)
-                list_new_category.append('Additives')
+                list_new_category.append('Pigments')
+                list_new_mass.append(i.mass * mass_pigms / old_all_mass_pigms)
+                maslo_pigm += i.mass * i.maslo / old_all_mass_pigms
+            for i in self.recepture.recepture_data.list_of_pigmpast_objects:
+                list_new_reactives.append(i.name)
+                list_new_category.append('PigmPast')
+                list_new_mass.append(i.mass * mass_pigms / old_all_mass_pigms)
+                maslo_pigm += i.mass * i.suhoi_pigm * i.maslo / old_all_mass_pigms
+            # print('Маслоемкость рассчитываемой рецептуры ' + str(maslo_pigm))
+            # check_hiding_pigm = hiding_pigm < tarir_hiding_pigm
+            # check_maslo_pigm = maslo_pigm < self.tarir_maslo
+            # check_philum = maslo_pigm * hiding_pigm < self.tarir_maslo * self.tarir_hiding_pigm
+            tarir_const_nap = tarir_degree_pigm * self.tarir_maslo
+            # print('Константа наполнения по тарир ' + str(tarir_const_nap))
+            # const_nap = tarir_degree_pigm * maslo_pigm
+            # check_const_nap = const_nap < tarir_const_nap
+            new_degree_pigm = tarir_const_nap / maslo_pigm
+
+            # print('требуемая степень пигментирования ' + str(new_degree_pigm))
+            # print('Масса пигментов ' + str(mass_pigms))
+            mass_fillers = ((new_degree_pigm * suhoi) / (Decimal(1) + new_degree_pigm)) - mass_pigms
+            # print('Масса напонителей ' + str(mass_fillers))
+            if len(self.recepture.recepture_data.list_of_filler_objects) == 2:
+                list_new_reactives.append(self.recepture.recepture_data.list_of_filler_objects[0].name)
+                list_new_category.append('Fillers')
+                mass_1_filler = mass_fillers * (maslo_pigm - self.recepture.recepture_data.list_of_filler_objects[1].maslo) / (
+                            self.recepture.recepture_data.list_of_filler_objects[0].maslo - self.recepture.recepture_data.list_of_filler_objects[1].maslo)
+                list_new_mass.append(mass_1_filler)
+
+                list_new_reactives.append(self.recepture.recepture_data.list_of_filler_objects[1].name)
+                list_new_category.append('Fillers')
+                mass_2_filler = mass_fillers - mass_1_filler
+                list_new_mass.append(mass_2_filler)
+            elif len(self.recepture.recepture_data.list_of_filler_objects) == 1:
+                list_new_reactives.append(self.recepture.recepture_data.list_of_filler_objects[0].name)
+                list_new_category.append('Fillers')
+                list_new_mass.append(mass_fillers)
+            else:
+                list_new_reactives.append('Наполнители')
+                list_new_category.append('Fillers')
+                list_new_mass.append(mass_fillers)
+            # конец расчета пигментов и наполнителей
+
+            mass_films = suhoi - mass_pigms - mass_fillers
+            # начало расчета пленок
+            for i in self.recepture.recepture_data.list_of_pigmpast_objects:  # вычитаем то что уже в пигм пастах
+                mass_films -= i.mass * i.suhoi_film
+
+            old_mass_films = Decimal(0)
+            for i in self.recepture.recepture_data.list_of_film_objects:
+                old_mass_films += i.mass
+            for i in self.recepture.recepture_data.list_of_additive_objects:
+                if i.type.lower() == 'пластификатор':
+                    old_mass_films += i.mass
+
+            for i in self.recepture.recepture_data.list_of_film_objects:
+                list_new_reactives.append(i.name)
+                list_new_category.append('Films')
                 new_mass_film = i.mass * mass_films / (
                         old_mass_films * i.suhoi)
                 list_new_mass.append(new_mass_film)
 
-        # конец расчета пленок
-        converted_list_new_mass = list(map(normalize_number, list_new_mass))
+            for i in self.recepture.recepture_data.list_of_additive_objects:
+                if i.type.lower() == 'пластификатор':
+                    list_new_reactives.append(i.name)
+                    list_new_category.append('Additives')
+                    new_mass_film = i.mass * mass_films / (
+                            old_mass_films * i.suhoi)
+                    list_new_mass.append(new_mass_film)
 
-        delete_chield(self.verticalLayout_3)
-        label = QtWidgets.QLabel(self.result_w)
-        label.setText("Результат")
-        label.setFont(generate_font(12, bold=True))
-        self.verticalLayout_3.addWidget(label, alignment=QtCore.Qt.AlignmentFlag.AlignCenter)
+            # конец расчета пленок
+            converted_list_new_mass = list(map(normalize_number, list_new_mass))
 
-        w, lo = create_w_lo(self.result_w, self.verticalLayout_3)
-        label = QtWidgets.QLabel(w)
-        label.setText(f'Выбранная СП: {tarir_degree_pigm}')
-        lo.addWidget(label)
+            delete_chield(self.verticalLayout_3)
+            label = QtWidgets.QLabel(self.result_w)
+            label.setText("Результат")
+            label.setFont(generate_font(12, bold=True))
+            self.verticalLayout_3.addWidget(label, alignment=QtCore.Qt.AlignmentFlag.AlignCenter)
 
-        for reactives, mass in zip(list_new_reactives, converted_list_new_mass):
             w, lo = create_w_lo(self.result_w, self.verticalLayout_3)
             label = QtWidgets.QLabel(w)
-            label.setText(reactives)
+            label.setText(f'Выбранная СП: {tarir_degree_pigm}')
             lo.addWidget(label)
 
-            result_e = CustomEntry(w, padding=False)
-            result_e.setMaximumSize(50, 22)
-            result_e.setReadOnly(True)
-            result_e.setText(mass)
-            lo.addWidget(result_e)
+            for reactives, mass in zip(list_new_reactives, converted_list_new_mass):
+                w, lo = create_w_lo(self.result_w, self.verticalLayout_3)
+                label = QtWidgets.QLabel(w)
+                label.setText(reactives)
+                lo.addWidget(label)
 
-        self.verticalLayout_3.addItem(get_v_spacer())
+                result_e = CustomEntry(w, padding=False)
+                result_e.setMaximumSize(50, 22)
+                result_e.setReadOnly(True)
+                result_e.setText(mass)
+                lo.addWidget(result_e)
+
+            self.verticalLayout_3.addItem(get_v_spacer())
+        except Exception as e:
+            logging.error(e, exc_info=True)
+            print(traceback.format_exc())
 
 
 class PhilumWindow(QtWidgets.QWidget):
@@ -3665,11 +3679,11 @@ class SaveAsWindow(QtWidgets.QWidget):
         iter = self.iter_c.text().strip()
         new_name = self.name_e.text().strip()
         if iter == "" or new_name == "":
-            InfoWindow("Имя не указано").exec()
+            InfoWindow("Имя не указано", cancel_f=False).exec()
             return
         list_names = self.get_list_recepture(iter)
         if new_name in list_names:
-            InfoWindow("Рецептура с таким именем уже существует.").exec()
+            InfoWindow("Рецептура с таким именем уже существует.", cancel_f=False).exec()
             return
 
         self.save_callback(iter, new_name)

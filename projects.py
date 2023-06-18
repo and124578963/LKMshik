@@ -22,12 +22,14 @@ from recepture import ReceptureWindow, ReceptureDataModel
 
 class Projects_Ui(object):
     instance = None
+
     def __init__(self):
         self.list_projects = []
         self.selected_project = ""
         self.dialogs = []
         self.settings_window = None
         self.info_window = None
+        self.search_window = None
         Projects_Ui.instance = self
 
     def setupUi(self, MainWindow):
@@ -117,7 +119,7 @@ class Projects_Ui(object):
         self.menu_b.setMaximumWidth(30)
         menu = CustomMenu(self.parent)
 
-        menu.addAction('Поиск компонента', lambda: print(1))
+        menu.addAction('Поиск компонента', lambda:self.open_search())
         menu.addAction('Настройки', lambda: self.open_settings())
         menu.addAction('Информация о приложении', lambda: self.open_info())
 
@@ -166,21 +168,29 @@ class Projects_Ui(object):
                                  self.list_projects))
         self.listView.set_list_elements(list_projects)
 
-    def select_project(self, name):
+    def select_project(self, name, _filter=None):
         Iteration.list_obj = []
         name_label = 'Тарировочные кривые' if name == "Тарировочные_кривые" else name
         self.selected_project = name
-        self.listView.change_selected(self.selected_project)
+        if _filter is None:
+            self.listView.change_selected(self.selected_project)
+            self.edit_btn.show()
+            self.del_proj_btn.show()
+        else:
+            name_label = "Результат поиска"
+            self.listView.change_selected(name_label)
+            self.edit_btn.hide()
+            self.del_proj_btn.hide()
+
         self.label_name_project.setText(name_label)
-        self.edit_btn.show()
-        self.del_proj_btn.show()
-        self.load_data_project()
+        self.load_data_project(_filter=_filter)
 
     # Загрузка параметров проекта
-    def load_data_project(self):
-        self.delete_chield(self.main_grid)
+    def load_data_project(self, _filter=None):
+        if _filter is None:
+            self.delete_chield(self.main_grid)
 
-        password = ""
+        password = Secrets.password
         dec_data_params = []
         dec_data_params_value = []
         with SqliteDict('saves/' + self.selected_project + '/params') as mydict:
@@ -200,21 +210,34 @@ class Projects_Ui(object):
         self.list_iteration_names.remove('params')
         self.list_iteration_names = self.list_iteration_names or []
 
+
+        if _filter is not None:
+            valid_project_iter_list = list(map(lambda path: path[0] + path[1], _filter))
+            project_iter_list = list(map(lambda iter: (self.selected_project + iter, iter), self.list_iteration_names))
+            list_actual_iter = []
+            for path, iter in project_iter_list:
+                if path in valid_project_iter_list:
+                    list_actual_iter.append(iter)
+            self.list_iteration_names = list_actual_iter
+
+
         self.list_iter_obj = []
 
         for name in self.list_iteration_names:
-            _iter = Iteration(self.scrollAreaWidgetContents, self.selected_project, name)
+            _iter = Iteration(self.scrollAreaWidgetContents, self.selected_project, name, _filter=_filter)
             self.main_grid.addWidget(_iter)
             self.list_iter_obj.append(_iter)
 
-        add_iter = AddButtonIteration(self.scrollAreaWidgetContents, "iter")
-        add_iter.set_click_event(self.add_iter)
+        if _filter is None:
+            add_iter = AddButtonIteration(self.scrollAreaWidgetContents, "iter")
+            add_iter.set_click_event(self.add_iter)
 
-        self.main_grid.addWidget(add_iter)
+            self.main_grid.addWidget(add_iter)
 
         spacerItem3 = QtWidgets.QSpacerItem(20, 40, QtWidgets.QSizePolicy.Policy.Minimum,
                                             QtWidgets.QSizePolicy.Policy.Expanding)
         self.main_grid.addItem(spacerItem3)
+
 
     def del_project(self):
         name = self.selected_project
@@ -278,6 +301,12 @@ class Projects_Ui(object):
             self.info_window = ApplicationInfo(self)
             self.info_window.show()
 
+    def open_search(self):
+        if self.search_window is None:
+            self.search_window = SearchReceptureByComponent(self)
+            self.search_window.show()
+
+
 class ProjectToolButton(QtWidgets.QPushButton):
     hover = QtCore.pyqtSignal(str)
 
@@ -322,7 +351,7 @@ class Iteration(QtWidgets.QWidget):
 
     list_obj = []
 
-    def __init__(self, parent, project, name):
+    def __init__(self, parent, project, name, _filter=None):
         super(Iteration, self).__init__(parent=parent)
         self.project = project
         self.name = name
@@ -331,6 +360,7 @@ class Iteration(QtWidgets.QWidget):
         self.target = None
         self.setAcceptDrops(False)
         self.acceptMove = False
+        self.filter = _filter
         Iteration.list_obj.append(self)
 
         self.vertical_loyout = QtWidgets.QVBoxLayout(self)
@@ -345,18 +375,22 @@ class Iteration(QtWidgets.QWidget):
         self.horizontalLayout_3 = QtWidgets.QHBoxLayout(self.iteration_toolbar)
         self.horizontalLayout_3.setContentsMargins(0, 0, 0, 0)
         self.iter_name = QtWidgets.QLabel(parent=self.iteration_toolbar)
-        self.iter_name.setText(name)
+        if _filter is None:
+            self.iter_name.setText(name)
+        else:
+            self.iter_name.setText(f"{self.project} - {name}")
         self.iter_name.setFont(generate_font(16))
         self.horizontalLayout_3.addWidget(self.iter_name)
 
-        self.graph_iter_btn = ProjectToolButton(self.iteration_toolbar, "graph")
-        self.graph_iter_btn.clicked.connect(lambda : self.open_graf_window())
-        self.graph_iter_btn.show()
-        self.horizontalLayout_3.addWidget(self.graph_iter_btn)
-        self.del_iter_btn = ProjectToolButton(self.iteration_toolbar, "del")
-        self.del_iter_btn.show()
-        self.del_iter_btn.clicked.connect(self.del_iter)
-        self.horizontalLayout_3.addWidget(self.del_iter_btn)
+        if _filter is None:
+            self.graph_iter_btn = ProjectToolButton(self.iteration_toolbar, "graph")
+            self.graph_iter_btn.clicked.connect(lambda : self.open_graf_window())
+            self.graph_iter_btn.show()
+            self.horizontalLayout_3.addWidget(self.graph_iter_btn)
+            self.del_iter_btn = ProjectToolButton(self.iteration_toolbar, "del")
+            self.del_iter_btn.show()
+            self.del_iter_btn.clicked.connect(self.del_iter)
+            self.horizontalLayout_3.addWidget(self.del_iter_btn)
 
         spacerItem1 = QtWidgets.QSpacerItem(40, 20, QtWidgets.QSizePolicy.Policy.Expanding,
                                             QtWidgets.QSizePolicy.Policy.Minimum)
@@ -371,6 +405,21 @@ class Iteration(QtWidgets.QWidget):
 
         self.list_recepture_names = self.get_list_recepture_names()
         self.list_recepture_obj = []
+
+
+        if _filter is not None:
+            valid_project_iter_rec_list = list(map(lambda path: (path[0] + path[1] + path[2]), _filter))
+            project_iter_rec_pos_list = list(map(lambda rec: (self.project + self.name + rec[0], rec[0]), self.list_recepture_names))
+            list_actual_rec_name = []
+            list_actual_rec = []
+            for path, name in project_iter_rec_pos_list:
+                if path in valid_project_iter_rec_list:
+                    list_actual_rec_name.append(name)
+
+            for r_name, position in self.list_recepture_names:
+                if r_name in list_actual_rec_name:
+                    list_actual_rec.append((r_name, position))
+            self.list_recepture_names = list_actual_rec
 
         list_size = []
         for r_name, position in self.list_recepture_names:
@@ -391,9 +440,10 @@ class Iteration(QtWidgets.QWidget):
                 while recepture.get_size() < max_size:
                     recepture.add_component("", "")
 
-        add_recepture = AddButtonIteration(w, "recepture")
-        add_recepture.set_click_event(lambda: self.add_recepture())
-        lo.addWidget(add_recepture)
+        if _filter is None:
+            add_recepture = AddButtonIteration(w, "recepture")
+            add_recepture.set_click_event(lambda: self.add_recepture())
+            lo.addWidget(add_recepture)
         lo.addItem(get_h_spacer())
 
     def get_list_recepture_names(self):
@@ -503,7 +553,7 @@ class Iteration(QtWidgets.QWidget):
     def mousePressEvent(self, event: QtGui.QMouseEvent):
         # test: QtWidgets.QVBoxLayout = event.source()
         # print(test.parentWidget())
-        if event.button() == Qt.MouseButton.LeftButton and self.acceptMove:
+        if event.button() == Qt.MouseButton.LeftButton and self.acceptMove and self.filter is None:
             # test: QtWidgets.QVBoxLayout = event.source()
             # print(test.parentWidget())
             self.setAcceptDrops(True)
@@ -661,12 +711,13 @@ class Recepture(QtWidgets.QFrame):
 
         # self.empty = QtWidgets.QLabel(parent=self)
         # self.empty.setText("")
+        if iter_obj.filter is None:
+            self.swap_area = DragHoverableButton(self.nameArea, "swap_r", (16, 16), iter_obj)
+            self.swap_area.setCursor(QtGui.QCursor(QtCore.Qt.CursorShape.SizeAllCursor))
+            self.horizontalLayout_5.addWidget(self.swap_area, alignment=QtCore.Qt.AlignmentFlag.AlignRight)
 
-        self.swap_area = DragHoverableButton(self.nameArea, "swap_r", (16, 16), iter_obj)
-        self.swap_area.setCursor(QtGui.QCursor(QtCore.Qt.CursorShape.SizeAllCursor))
-        self.horizontalLayout_5.addWidget(self.swap_area, alignment=QtCore.Qt.AlignmentFlag.AlignRight)
         self.g_loyout.addWidget(self.nameArea)
-        # self.g_loyout.addWidget()
+            # self.g_loyout.addWidget()
 
         self.consist = QtWidgets.QFrame(parent=self)
         self.consist.setMaximumSize(QtCore.QSize(300, 16777215))
@@ -1061,7 +1112,7 @@ class AddProjectWindow(QtWidgets.QWidget):
         return (name_project, data_params, data_params_value, description)
 
     def save_data(self):
-        password = ""
+        password = Secrets.password
         name_project, data_params, data_params_value, description = self.collect_data()
 
         projects = os.listdir('saves/')
@@ -1112,7 +1163,7 @@ class EditProjectWindow(AddProjectWindow):
         self.setWindowTitle(f"Редактирование проекта - {self.project_name}")
 
     def add_default_rows(self):
-        password = ""
+        password = Secrets.password
 
         self.name_lineEdit.setText(self.project_name)
         dec_data_params = []
@@ -1139,7 +1190,7 @@ class EditProjectWindow(AddProjectWindow):
             self.add_row(text=name, value_text=value)
 
     def save_data(self):
-        password = ""
+        password = Secrets.password
 
         name_project = self.project_name
         edited_name_project, data_params, data_params_value, description = self.collect_data()
@@ -1269,69 +1320,73 @@ class DrawGraf(QtWidgets.QWidget):
         self.combobox_y.addItems(list_experiment_name)
 
     def draw_graf(self):
-        axe_x = self.combobox_x.text()
-        axe_y = self.combobox_y.text()
-        if axe_x.strip() == "" or axe_y.strip() == "":
-            logging.info(f"Выбраны пустые оси: x {axe_x}, y {axe_y}")
-            return
+        try:
+            axe_x = self.combobox_x.text()
+            axe_y = self.combobox_y.text()
+            if axe_x.strip() == "" or axe_y.strip() == "":
+                logging.info(f"Выбраны пустые оси: x {axe_x}, y {axe_y}")
+                return
 
-        axe_x_data = []
-        if axe_x in self.list_component_name:
+            axe_x_data = []
+            if axe_x in self.list_component_name:
+                for recepture in self.list_receptures:
+                    recepture: ReceptureDataModel
+                    component_list = recepture.component_list + recepture.component_list_2
+                    component = list(filter(lambda x: x[0].strip() == axe_x.strip(), component_list))
+                    if len(component) > 0:
+                        component_mass = component[0][1]
+                    else:
+                        component_mass = None
+                    axe_x_data.append(component_mass)
+            elif axe_x in self.list_params_name:
+                for recepture in self.list_receptures:
+                    value = self.map_param_value(recepture, axe_x)
+                    axe_x_data.append(value)
+            else:
+                logging.error(f"Неизвестная ось Х: {axe_x}")
+                return
+
+            axe_y_data = []
             for recepture in self.list_receptures:
                 recepture: ReceptureDataModel
-                component_list = recepture.component_list + recepture.component_list_2
-                component = list(filter(lambda x: x[0].strip() == axe_x.strip(), component_list))
-                if len(component) > 0:
-                    component_mass = component[0][1]
+
+                experiment_list = recepture.experiment_list
+                experiment = list(filter(lambda x: x[0].strip() == axe_y.strip(), experiment_list))
+
+                if len(experiment) > 0:
+                    experiment_value = experiment[0][2]
                 else:
-                    component_mass = None
-                axe_x_data.append(component_mass)
-        elif axe_x in self.list_params_name:
-            for recepture in self.list_receptures:
-                value = self.map_param_value(recepture, axe_x)
-                axe_x_data.append(value)
-        else:
-            logging.error(f"Неизвестная ось Х: {axe_x}")
-            return
-
-        axe_y_data = []
-        for recepture in self.list_receptures:
-            recepture: ReceptureDataModel
-
-            experiment_list = recepture.experiment_list
-            experiment = list(filter(lambda x: x[0].strip() == axe_y.strip(), experiment_list))
-
-            if len(experiment) > 0:
-                experiment_value = experiment[0][2]
-            else:
-                experiment_value = None
-            axe_y_data.append(experiment_value)
+                    experiment_value = None
+                axe_y_data.append(experiment_value)
 
 
-        list_x_y = list(filter(lambda xy: xy[0] is not None and xy[1] is not None, zip(axe_x_data, axe_y_data)))
+            list_x_y = list(filter(lambda xy: xy[0] is not None and xy[1] is not None, zip(axe_x_data, axe_y_data)))
 
-        list_result = []
-        for x, y in list_x_y:
-            try:
-                x = float(x.replace(",", ".").strip())
-                y = float(y.replace(",", ".").strip())
-                list_result.append((x, y))
-            except:
-                logging.info(f"X или Y не числа: x {x}; y {y}")
-                continue
+            list_result = []
+            for x, y in list_x_y:
+                try:
+                    x = float(x.replace(",", ".").strip())
+                    y = float(y.replace(",", ".").strip())
+                    list_result.append((x, y))
+                except:
+                    logging.info(f"X или Y не числа: x {x}; y {y}")
+                    continue
 
-        if len(list_result) == 0:
-            logging.info(f"Список координат пуст для построения графика")
-            return
+            if len(list_result) == 0:
+                logging.info(f"Список координат пуст для построения графика")
+                return
 
-        list_result.sort(key=lambda xy: xy[0])
-        list_of_x, list_of_y = zip(*list_result)
+            list_result.sort(key=lambda xy: xy[0])
+            list_of_x, list_of_y = zip(*list_result)
 
-        self.plot.axes.plot(list_of_x, list_of_y, label=f"{self.combobox_x.text()} - {self.combobox_y.text()}")
-        self.plot.axes.legend(loc='upper right', frameon=False)
-        self.plot.axes.grid(linestyle='--')
-        self.plot.axes.set(xlabel=self.combobox_x.text())
-        self.plot.draw()
+            self.plot.axes.plot(list_of_x, list_of_y, label=f"{self.combobox_x.text()} - {self.combobox_y.text()}")
+            self.plot.axes.legend(loc='upper right', frameon=False)
+            self.plot.axes.grid(linestyle='--')
+            self.plot.axes.set(xlabel=self.combobox_x.text())
+            self.plot.draw()
+        except Exception as e:
+            print(traceback.format_exc())
+            logging.error(e, exc_info=True)
 
     def map_param_value(self, recepture: ReceptureDataModel, name_param: str) -> str:
         map_dict_param = recepture.get_count_dict()
@@ -1355,7 +1410,6 @@ class DrawGraf(QtWidgets.QWidget):
 
 
 class WindowSettings(QtWidgets.QWidget):
-
     def __init__(self, parent):
         super(WindowSettings, self).__init__()
         set_window_icon(self)
@@ -1478,4 +1532,79 @@ class ApplicationInfo(QtWidgets.QWidget):
     def closeEvent(self, event):
         self.parent_obj.info_window = None
 
+
+class SearchReceptureByComponent(QtWidgets.QWidget):
+    def __init__(self, parent: Projects_Ui):
+        super(SearchReceptureByComponent, self).__init__()
+        set_window_icon(self)
+        self.parent_obj = parent
+        self.setObjectName("search")
+        self.setStyleSheet("""
+        QWidget#search{
+        background: #f9f9f9;
+        }
+        """)
+        self.resize(300, 100)
+
+        self.verticalLayout = QtWidgets.QVBoxLayout(self)
+        self.verticalLayout.setSpacing(0)
+
+        w, lo = create_w_lo(self, self.verticalLayout)
+        name_l = QtWidgets.QLabel(parent=w)
+        name_l.setText("Поиск рецептур по названию компонента")
+        lo.addWidget(name_l, alignment=QtCore.Qt.AlignmentFlag.AlignCenter)
+        lo.addItem(get_v_spacer())
+
+        w, lo = create_w_lo(self, self.verticalLayout)
+        name_l = QtWidgets.QLabel(parent=w)
+        name_l.setText("Компонент:")
+        lo.addWidget(name_l)
+        self.name_e = CustomEntry(w, padding=False)
+        self.name_e.setMaximumSize(300, 20)
+        self.name_e.setMinimumSize(300, 20)
+        lo.addWidget(self.name_e)
+        lo.addItem(get_h_spacer())
+
+        self.save_btn = DarkBtn_Ui(self, "search")
+        self.save_btn.clicked.connect(lambda : self.search())
+        self.verticalLayout.addWidget(self.save_btn)
+
+        self.setWindowTitle("ЛКМщик - Поиск рецептур по названию компонента")
+
+    def closeEvent(self, event):
+        self.parent_obj.search_window = None
+
+
+    def search(self):
+        name = self.name_e.text()
+
+        list_projects = os.listdir('saves/')
+
+        list_result = []
+        list_projects_result = set()
+        for project in list_projects:
+            list_iteration_names = os.listdir('saves/' + project + '/')
+            list_iteration_names.remove('params')
+            list_iteration_names = list_iteration_names or []
+            for iter in list_iteration_names:
+                with SqliteDict('saves/' + project + '/' + iter) as mydict:
+                    list_rec_name = list(dict(mydict).keys())
+                for recepture in list_rec_name:
+                    data_model = ReceptureDataModel(project, iter, recepture)
+                    data_model.load_data()
+                    component_list = data_model.component_list
+                    if data_model.flag_2k:
+                        component_list += data_model.component_list_2
+                    for component, _ in component_list:
+                        if component.lower().strip().find(name.lower().strip()) != -1:
+                            list_result.append((project, iter, recepture))
+                            list_projects_result.add(project)
+                            break
+
+        if len(list_result) > 0:
+            self.parent_obj.delete_chield(self.parent_obj.main_grid)
+            for project in list(list_projects_result):
+                self.parent_obj.select_project(project, _filter=list_result)
+        else:
+            InfoWindow("Ничего не нашлось", cancel_f=False).exec()
 

@@ -1,3 +1,4 @@
+import logging
 import sqlite3
 import traceback
 import urllib.request
@@ -7,7 +8,7 @@ from Crypto.Hash import SHA256  # Для хеширования данных и�
 from Crypto.Hash import MD5
 from Crypto import Random
 
-
+from common.secrets import Secrets
 from common.settings import ENCRYPT_REACTIVES, get_database_path
 
 
@@ -27,6 +28,7 @@ def connect_db_decorator(func):
             values = func(self, *args)  # Сама функция
 
         except Exception as e:
+            logging.error(e, exc_info=True)
             traceback.print_exc()
         finally:
 
@@ -92,7 +94,7 @@ class DB:
         return value_.lower()
 
     def sqlite_decode(self, value_):
-        global password
+        password = Secrets.password
         if ENCRYPT_REACTIVES:
             value = self.symmetric_decrypt(bytes(value_), password).decode()
         else:

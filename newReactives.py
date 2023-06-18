@@ -8,7 +8,7 @@ from component_card import ComponentCard, EditComponentCard
 from common.settings import TABLE_DICT, get_category, PASSPORT, update_config_param
 from database import DB
 import pandas as pd
-
+import random
 
 class MyComponentsUi(QWidget):
     _instance = False  # Keep instance reference
@@ -209,7 +209,7 @@ class MyComponentsUi(QWidget):
         except Exception:
             text = "Неверное хранилище. \nВыберите в настройках другое хранилище компонентов." \
                    "\nПо умолчанию: reactives.db в папке с программой."
-            if InfoWindow(text).exec():
+            if InfoWindow(text, cancel_f=False).exec():
                 dialog = QFileDialog()
                 dialog.setNameFilter("Хранилище компонентов (*.db)")
                 dialog.setFileMode(QFileDialog.fileMode(dialog).AnyFile)
@@ -268,7 +268,7 @@ class MyComponentsUi(QWidget):
             try:
                 self.db.update_reactives_base()
             except:
-                InfoWindow("Не получилось загрузить общую базу").exec()
+                InfoWindow("Не получилось загрузить общую базу", cancel_f=False).exec()
 
             self.add_btn.hide()
             self.del_btn.hide()
@@ -322,6 +322,7 @@ class DarkBtn_Ui(QtWidgets.QPushButton):
             "calc": ["images/calc.png", "  Рассчитать"],
             "brish": ["images/brish.png", "  Указать"],
             "menu": ["images/menu_project.png", ""],
+            "search" : ["images/brish.png", "  Найти рецептуры"],
         }
         self.setSizeIncrement(QtCore.QSize(0, 0))
         self.setCursor(QtGui.QCursor(QtCore.Qt.CursorShape.PointingHandCursor))
@@ -484,7 +485,6 @@ class CustomTable(QtWidgets.QTableView):
         # self.setSizeAdjustPolicy(QtWidgets.QAbstractScrollArea.SizeAdjustPolicy.AdjustToContents)
         # self.setWordWrap(True)
         # self.horizontalHeader().setStretchLastSection(True)
-
 
 
 class CategoryButton(QtWidgets.QPushButton):
@@ -657,13 +657,27 @@ QComboBox QAbstractItemView {
 
 class InfoWindow(QDialog):
 
-    def __init__(self, text):
+    def __init__(self, text, cancel_f=True):
         super().__init__()
         set_window_icon(self)
         self.setObjectName("background")
         self.resize(497, 183)
+
+
+        list_images = [
+            ("images/infoWindow/INFO.png", "#d0b394"),
+            ("images/infoWindow/info1.png", "#c5c5c3"),
+            ("images/infoWindow/info2.png", "#e6e5e4"),
+            ("images/infoWindow/info3.png", "#b0bdc5"),
+            ("images/infoWindow/info4.png", "#d1d2d4"),
+            ("images/infoWindow/info5.png", "#c4c5c7"),
+            ("images/infoWindow/info6.png", "#d3d0cd"),
+            ("images/infoWindow/info7.png", "#d7d2ce"),
+            ("images/infoWindow/info8.png", "#f4f1ea"),
+        ]
+        path, color = random.choice(list_images)
         self.setStyleSheet("QWidget#background{\n"
-                                 "background-color: #d0b394;\n"
+                                 f"background-color: {color};\n"
                                  "}")
         self.verticalLayout = QtWidgets.QVBoxLayout(self)
         self.verticalLayout.setContentsMargins(17, 17, 17, 17)
@@ -681,7 +695,7 @@ class InfoWindow(QDialog):
         self.label_2.setMaximumSize(QtCore.QSize(150, 125))
         self.label_2.setLayoutDirection(QtCore.Qt.LayoutDirection.LeftToRight)
         self.label_2.setText("")
-        self.label_2.setPixmap(QtGui.QPixmap("images/INFO.png"))
+        self.label_2.setPixmap(QtGui.QPixmap(path))
         self.label_2.setScaledContents(True)
         self.label_2.setObjectName("label_2")
         self.horizontalLayout.addWidget(self.label_2)
@@ -700,14 +714,19 @@ class InfoWindow(QDialog):
         self.buttonBox.setAcceptDrops(False)
         self.buttonBox.setAutoFillBackground(False)
         self.buttonBox.setOrientation(QtCore.Qt.Orientation.Horizontal)
-        self.buttonBox.setStandardButtons(
-            QtWidgets.QDialogButtonBox.StandardButton.Cancel | QtWidgets.QDialogButtonBox.StandardButton.Ok)
+        if cancel_f:
+            self.buttonBox.setStandardButtons(
+                QtWidgets.QDialogButtonBox.StandardButton.Cancel | QtWidgets.QDialogButtonBox.StandardButton.Ok)
+            self.buttonBox.rejected.connect(self.reject)
+
+        else:
+            self.buttonBox.setStandardButtons(
+                QtWidgets.QDialogButtonBox.StandardButton.Ok)
+        self.buttonBox.accepted.connect(self.accept)
         self.buttonBox.setCenterButtons(False)
         self.buttonBox.setObjectName("buttonBox")
         self.verticalLayout.addWidget(self.buttonBox)
         self.setWindowTitle("Предупреждение")
-        self.buttonBox.accepted.connect(self.accept)
-        self.buttonBox.rejected.connect(self.reject)
         QtCore.QMetaObject.connectSlotsByName(self)
 
 
@@ -785,8 +804,8 @@ class SettingsWindow(QWidget):
                "\n(не диапазоны). Названия и шифры (при использовании) не должны повторяться."
         
         if InfoWindow(text).exec():
-            xl = pd.ExcelFile('import.xlsx')
 
+            xl = pd.ExcelFile('import.xlsx')
             list_groups = ['Solvents', 'Pigments', 'PigmPast', 'Fillers', 'Films', 'Additives', 'Hardener', 'Producer']
             list_params = [self.params_solvent, self.params_pigments, self.params_pigmpasts, self.params_fillers,
                            self.params_films, self.params_additives, self.params_hardener, self.params_provider]
@@ -809,13 +828,14 @@ class SettingsWindow(QWidget):
                     result = self.db.new_insert_data(group, params, values)
                     if not result:
                         if group != 'Producer':
-                            list_errors += f'\n{sheet}:{df1.iloc[i][1]}'
+                            list_errors += f'\n{sheet}: {df1.iloc[i][1]}'
                         else:
-                            list_errors += f'\n{sheet}:{df1.iloc[i][0]}'
+                            list_errors += f'\n{sheet}: {df1.iloc[i][0]}'
+            xl.close()
             if list_errors == 'Не удалось добавить следующие компоненты:':
                 self.destroy()
             else:
-                InfoWindow(list_errors).exec()
+                InfoWindow(list_errors, cancel_f=False).exec()
 
     # TODO: Переписать функцию
     def params_f(self):
@@ -877,6 +897,7 @@ class SettingsWindow(QWidget):
             u"$": 1,
             u"€": 2,
         }
+
 
     def select_db(self):
         dialog = QFileDialog(self)
