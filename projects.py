@@ -6,13 +6,15 @@ from decimal import Decimal
 from typing import List
 
 from PyQt6 import QtCore, QtGui, QtWidgets
-from PyQt6.QtCore import QStringListModel, Qt, QSize
+from PyQt6.QtCore import QStringListModel, Qt, QSize, QEvent
 from PyQt6.QtWidgets import QAbstractItemView, QInputDialog, QLineEdit
 from sqlitedict import SqliteDict
 
 from common.secrets import Secrets
+from common.settings import get_config_param, update_config_param, get_app_version
 from common.ui_elements import HoverableButton, CustomListItem, generate_font, ColorButton, generate_color, ChoiceColor, \
-    get_v_spacer, MplCanvas, create_w_lo, CustomCombobox, get_h_spacer, delete_chield, normalize_number
+    get_v_spacer, MplCanvas, create_w_lo, CustomCombobox, get_h_spacer, delete_chield, normalize_number, \
+    DragHoverableButton, set_window_icon, CustomMenu
 from component_card import CustomEntry
 from newReactives import DarkBtn_Ui, InfoWindow, MyComponentsUi
 from recepture import ReceptureWindow, ReceptureDataModel
@@ -24,6 +26,8 @@ class Projects_Ui(object):
         self.list_projects = []
         self.selected_project = ""
         self.dialogs = []
+        self.settings_window = None
+        self.info_window = None
         Projects_Ui.instance = self
 
     def setupUi(self, MainWindow):
@@ -104,10 +108,27 @@ class Projects_Ui(object):
         spacerItem = QtWidgets.QSpacerItem(40, 20, QtWidgets.QSizePolicy.Policy.Expanding,
                                            QtWidgets.QSizePolicy.Policy.Minimum)
         self.horizontalLayout_2.addItem(spacerItem)
+
         self.components = DarkBtn_Ui(self.toolbar, "warehouse")
         self.components.clicked.connect(self.open_my_components)
         self.horizontalLayout_2.addWidget(self.components)
+
+        self.menu_b = DarkBtn_Ui(self.toolbar, "menu")
+        self.menu_b.setMaximumWidth(30)
+        menu = CustomMenu(self.parent)
+
+        menu.addAction('Поиск компонента', lambda: print(1))
+        menu.addAction('Настройки', lambda: self.open_settings())
+        menu.addAction('Информация о приложении', lambda: self.open_info())
+
+        self.menu_b.setMenu(menu)
+
+        self.horizontalLayout_2.addWidget(self.menu_b)
+
         self.verticalLayout_3.addWidget(self.toolbar)
+
+
+
 
         self.scrollArea = QtWidgets.QScrollArea(parent=self.right_side)
         self.scrollArea.setWidgetResizable(True)
@@ -146,6 +167,7 @@ class Projects_Ui(object):
         self.listView.set_list_elements(list_projects)
 
     def select_project(self, name):
+        Iteration.list_obj = []
         name_label = 'Тарировочные кривые' if name == "Тарировочные_кривые" else name
         self.selected_project = name
         self.listView.change_selected(self.selected_project)
@@ -246,6 +268,15 @@ class Projects_Ui(object):
                 self.dialogs.append(dialog)
                 dialog.show()
 
+    def open_settings(self):
+        if self.settings_window is None:
+            self.settings_window = WindowSettings(self)
+            self.settings_window.show()
+
+    def open_info(self):
+        if self.info_window is None:
+            self.info_window = ApplicationInfo(self)
+            self.info_window.show()
 
 class ProjectToolButton(QtWidgets.QPushButton):
     hover = QtCore.pyqtSignal(str)
@@ -289,12 +320,19 @@ class ProjectToolButton(QtWidgets.QPushButton):
 
 class Iteration(QtWidgets.QWidget):
 
+    list_obj = []
+
     def __init__(self, parent, project, name):
         super(Iteration, self).__init__(parent=parent)
         self.project = project
         self.name = name
         self.dialogs = []
         self.graf_window = None
+        self.target = None
+        self.setAcceptDrops(False)
+        self.acceptMove = False
+        Iteration.list_obj.append(self)
+
         self.vertical_loyout = QtWidgets.QVBoxLayout(self)
         self.iteration_toolbar = QtWidgets.QWidget(self)
         self.iteration_toolbar.setContentsMargins(0,15,0,5 )
@@ -325,19 +363,25 @@ class Iteration(QtWidgets.QWidget):
         self.horizontalLayout_3.addItem(spacerItem1)
         self.vertical_loyout.addWidget(self.iteration_toolbar)
 
-        self.iter = QtWidgets.QWidget(self)
-        self.loyout = QtWidgets.QHBoxLayout(self.iter)
+        w, lo = create_w_lo(self, self.vertical_loyout)
+        self.iter = QtWidgets.QWidget(w)
+        self.loyout = QtWidgets.QGridLayout(self.iter)
         self.loyout.setSpacing(10)
-        self.vertical_loyout.addWidget(self.iter)
+        lo.addWidget(self.iter)
 
         self.list_recepture_names = self.get_list_recepture_names()
         self.list_recepture_obj = []
 
         list_size = []
-        for r_name in self.list_recepture_names:
-            recepture = Recepture(self.iter, self.project, self.name, r_name)
+        for r_name, position in self.list_recepture_names:
+            recepture = Recepture(self.iter, self.project, self.name, r_name, self)
+
+            Box = QtWidgets.QVBoxLayout()
+            Box.setContentsMargins(0,0,0,0)
+            Box.addWidget(recepture)
+
             self.list_recepture_obj.append(recepture)
-            self.loyout.addWidget(recepture)
+            self.loyout.addLayout(Box, 0, position, 1, 1)
             list_size.append(recepture.get_size())
 
         if len(list_size):
@@ -347,20 +391,45 @@ class Iteration(QtWidgets.QWidget):
                 while recepture.get_size() < max_size:
                     recepture.add_component("", "")
 
-        add_recepture = AddButtonIteration(self.iter, "recepture")
+        add_recepture = AddButtonIteration(w, "recepture")
         add_recepture.set_click_event(lambda: self.add_recepture())
-        self.loyout.addWidget(add_recepture)
-
-        spacerItem2 = QtWidgets.QSpacerItem(40, 20, QtWidgets.QSizePolicy.Policy.Expanding,
-                                            QtWidgets.QSizePolicy.Policy.Minimum)
-        self.loyout.addItem(spacerItem2)
+        lo.addWidget(add_recepture)
+        lo.addItem(get_h_spacer())
 
     def get_list_recepture_names(self):
         with SqliteDict('saves/' + self.project + '/' + self.name) as mydict:
             self.iter_data = dict(mydict)
         sorted_list_key = list(self.iter_data.keys())
         sorted_list_key.sort()
-        return sorted_list_key
+        list_positions = []
+        for name in sorted_list_key:
+            recepture_data: list = self.iter_data.get(name)
+            if len(recepture_data) > 9:
+                dict_param:dict = recepture_data.pop(9)
+                position = dict_param.get("position", 99999)
+            else:
+                position = 99999
+            list_positions.append(position)
+
+        list_name_position = list(zip(sorted_list_key, list_positions))
+        list_name_position.sort(key=lambda recepture: recepture[1])
+
+        # print(list_name_position)
+        fixed_position_list = []
+        pos = 0
+        # print("__________")
+        for name, position in list_name_position:
+            # print(f"b position {position}")
+            if position == 99999:
+                position = pos
+                pos += 1
+            else:
+                pos = position + 1
+
+            # print(f"f position {position}")
+            fixed_position_list.append((name, position))
+
+        return fixed_position_list
 
     def del_iter(self):
         if InfoWindow(f"Вы хотете удалить итерацию: \n{self.name}?").exec():
@@ -385,8 +454,161 @@ class Iteration(QtWidgets.QWidget):
             self.graf_window.show()
 
 
+
+    @staticmethod
+    def set_drop_false(obj=None):
+        for i in Iteration.list_obj:
+            if i is not None and i is not obj:
+                i.setAcceptDrops(False)
+
+    # def reset_row_number(self):
+    #     list_obj: List[Iteration]
+    #     list_obj = self.get_list_obj()
+    #     number = 1
+    #     for obj in list_obj:
+    #         if obj is not None and not obj.isHidden():
+    #             if not obj.flag_comment:
+    #                 obj.set_number(number)
+    #                 number += 1
+
+    def get_list_obj(self, raw=False):
+        list_obj = []
+        raw_list_obj = []
+        for i in range(self.loyout.count()):
+            component_row_obj: QtWidgets.QWidgetItem = self.loyout.itemAt(i).itemAt(0)
+            if component_row_obj.widget():
+                list_obj.append((component_row_obj.widget(), self.loyout.getItemPosition(i)[1]))
+                raw_list_obj.append(component_row_obj.widget())
+        if raw:
+            return raw_list_obj
+
+        list_obj.sort(key=lambda x: x[1])
+        list_obj = list(map(lambda x: x[0], list_obj))
+        return list_obj
+
+    def get_index(self, pos):
+        for i in range(self.loyout.count()):
+            if self.loyout.itemAt(i).geometry().contains(pos) and i != self.target:
+                return i
+
+    # def eventFilter(self, watched, event):
+    #     if event.type() == QtCore.QEvent.Type.MouseButtonPress:
+    #         self.mousePressEvent(event)
+    #     elif event.type() == QtCore.QEvent.Type.MouseMove:
+    #         self.mouseMoveEvent(event)
+    #     elif event.type() == QtCore.QEvent.Type.MouseButtonRelease:
+    #         self.mouseReleaseEvent(event)
+    #     return super().eventFilter(watched, event)
+
+    def mousePressEvent(self, event: QtGui.QMouseEvent):
+        # test: QtWidgets.QVBoxLayout = event.source()
+        # print(test.parentWidget())
+        if event.button() == Qt.MouseButton.LeftButton and self.acceptMove:
+            # test: QtWidgets.QVBoxLayout = event.source()
+            # print(test.parentWidget())
+            self.setAcceptDrops(True)
+            self.target = self.get_index(event.position().toPoint())
+            Iteration.set_drop_false(obj=self)
+        else:
+            self.target = None
+            Iteration.set_drop_false()
+
+    def mouseMoveEvent(self, event: QEvent):
+        if event.buttons() & Qt.MouseButton.LeftButton and self.target is not None:
+            # test: QtWidgets.QVBoxLayout = event.source()
+            # print(test.parentWidget())
+            # print(event.)
+            drag = QtGui.QDrag(self.loyout.itemAt(self.target))
+            pix = self.loyout.itemAt(self.target).itemAt(0).widget().grab()
+            mimedata = QtCore.QMimeData()
+            mimedata.setImageData(pix)
+
+            drag.setMimeData(mimedata)
+            drag.setPixmap(pix)
+            drag.setHotSpot(QtCore.QPoint(230,20))
+            drag.exec()
+
+    def mouseReleaseEvent(self, event):
+        self.target = None
+        Iteration.set_drop_false()
+
+    def dragEnterEvent(self, event):
+        if event.mimeData().hasImage():
+            event.accept()
+        else:
+            event.ignore()
+
+    def dropEvent(self, event: QtGui.QMouseEvent):
+        # test:QtWidgets.QVBoxLayout = event.source()
+        # print(test.parentWidget())
+        if not event.source().geometry().contains(event.position().toPoint()):
+            source = self.get_index(event.position().toPoint())
+            if source is None:
+                return
+            list_obj = self.get_list_obj()
+            # print("list_obj")
+            # print(list_obj)
+            raw_list_obj = self.get_list_obj(raw=True)
+            s = list_obj.index(self.loyout.itemAt(source).itemAt(0).widget())
+            # print(f"s {s}")
+            f = list_obj.index(self.loyout.itemAt(self.target).itemAt(0).widget())
+            # print(f"f {f}")
+            if s > f:
+                for i in range(f + 1, s + 1):
+                    raw_index = self.get_list_obj(raw=True).index(list_obj[i])
+                    p1 = list(self.loyout.getItemPosition(raw_index))
+                    p1[1] = i - 1
+                    _loyout = self.loyout.takeAt(raw_index)
+                    self.loyout.addItem(_loyout, *p1)
+                    new_index = p1[1]
+                    name = _loyout.itemAt(0).widget().name
+                    project = _loyout.itemAt(0).widget().project
+                    iter = _loyout.itemAt(0).widget().iter
+                    self.save_position(project, iter, name, new_index)
+
+            elif s < f:
+                for i in range(s, f):
+                    raw_index = self.get_list_obj(raw=True).index(list_obj[i])
+                    p1 = list(self.loyout.getItemPosition(raw_index))
+                    p1[1] = i + 1
+                    _loyout = self.loyout.takeAt(raw_index)
+                    self.loyout.addItem(_loyout, *p1)
+                    new_index = p1[1]
+                    name = _loyout.itemAt(0).widget().name
+                    project = _loyout.itemAt(0).widget().project
+                    iter = _loyout.itemAt(0).widget().iter
+                    self.save_position(project, iter, name, new_index)
+
+            raw_index = self.get_list_obj(raw=True).index(list_obj[f])
+            _loyout = self.loyout.takeAt(raw_index)
+            self.loyout.addItem(_loyout, 0, s, 1, 1)
+            name = _loyout.itemAt(0).widget().name
+            project = _loyout.itemAt(0).widget().project
+            iter = _loyout.itemAt(0).widget().iter
+            self.save_position(project, iter, name, s)
+
+            # i, j = max(self.target, source), min(self.target, source)
+            # p1, p2 = self.gridLayout.getItemPosition(i), self.gridLayout.getItemPosition(j)
+            # print(p1)
+            # self.gridLayout.addItem(self.gridLayout.takeAt(i), *p2)
+            # self.gridLayout.addItem(self.gridLayout.takeAt(j), *p1)
+            # self.reset_row_number()
+        Iteration.set_drop_false()
+
+    def save_position(self, project, iter, name, position):
+        with SqliteDict('saves/' + project + '/' + iter) as mydict:
+            list_param = mydict[name]
+            if len(list_param) > 9:
+                list_param[9]["position"] = position
+            else:
+                list_param[9] = {}
+                list_param[9]["position"] = position
+            mydict[name] = list_param
+            mydict.commit()
+
+
 class Recepture(QtWidgets.QFrame):
-    def __init__(self, parent, project, iter, name):
+    def __init__(self, parent, project, iter, name, iter_obj):
         super(Recepture, self).__init__(parent=parent)
         self.setFocusPolicy(Qt.FocusPolicy.ClickFocus | Qt.FocusPolicy.NoFocus)
         self.data_model = ReceptureDataModel(project, iter, name)
@@ -440,11 +662,9 @@ class Recepture(QtWidgets.QFrame):
         # self.empty = QtWidgets.QLabel(parent=self)
         # self.empty.setText("")
 
-        self.pushButton_7 = QtWidgets.QPushButton(parent=self.nameArea)
-        self.pushButton_7.setObjectName("pushButton_7")
-        self.pushButton_7.setText("...")
-        self.pushButton_7.setStyleSheet("""QPushButton{border:0px solid black;}""")
-        self.horizontalLayout_5.addWidget(self.pushButton_7, alignment=QtCore.Qt.AlignmentFlag.AlignRight)
+        self.swap_area = DragHoverableButton(self.nameArea, "swap_r", (16, 16), iter_obj)
+        self.swap_area.setCursor(QtGui.QCursor(QtCore.Qt.CursorShape.SizeAllCursor))
+        self.horizontalLayout_5.addWidget(self.swap_area, alignment=QtCore.Qt.AlignmentFlag.AlignRight)
         self.g_loyout.addWidget(self.nameArea)
         # self.g_loyout.addWidget()
 
@@ -640,6 +860,7 @@ class AddProjectWindow(QtWidgets.QWidget):
         super().__init__()
         AddProjectWindow.instance = self
         self.setObjectName("Form")
+        set_window_icon(self)
         self.row = 0
         self.project_color = "#00FFFFFF"
         self.choice_color_window = None
@@ -983,6 +1204,7 @@ class DrawGraf(QtWidgets.QWidget):
         self.list_params_name = list(list_receprure_obj[0].get_count_dict().keys())
         self.list_params_name.sort()
 
+        set_window_icon(self)
         self.setWindowTitle("Построить графики")
         self.setObjectName("window_w")
         self.resize(600, 400)
@@ -1130,3 +1352,130 @@ class DrawGraf(QtWidgets.QWidget):
 
     def closeEvent(self, a0: QtGui.QCloseEvent) -> None:
         self.parent_obj.graf_window = None
+
+
+class WindowSettings(QtWidgets.QWidget):
+
+    def __init__(self, parent):
+        super(WindowSettings, self).__init__()
+        set_window_icon(self)
+        self.parent_obj = parent
+        self.setObjectName("settings")
+        self.setStyleSheet("""
+        QWidget#settings{
+        background: #f9f9f9;
+        }
+        """)
+        self.resize(300, 100)
+
+        self.name = get_config_param("name")
+        self.email = get_config_param("email")
+        self.company = get_config_param("company")
+
+        self.verticalLayout = QtWidgets.QVBoxLayout(self)
+        self.verticalLayout.setSpacing(0)
+
+        w, lo = create_w_lo(self, self.verticalLayout)
+        name_l = QtWidgets.QLabel(parent=w)
+        name_l.setText("Ваше имя:")
+        name_l.setToolTip("Для разделения пользователей \nпри многопользовательском режиме")
+        lo.addWidget(name_l)
+        lo.addItem(get_h_spacer())
+        self.name_e = CustomEntry(w, padding=False)
+        self.name_e.setMaximumSize(300, 20)
+        self.name_e.setMinimumSize(300, 20)
+        self.name_e.setText(self.name)
+        lo.addWidget(self.name_e)
+
+
+        w, lo = create_w_lo(self, self.verticalLayout)
+        mail_l = QtWidgets.QLabel(parent=w)
+        mail_l.setText("E-mail:")
+        mail_l.setToolTip("Для уведомлений о крупных обновлениях")
+        lo.addWidget(mail_l)
+        lo.addItem(get_h_spacer())
+        self.mail_e = CustomEntry(w, padding=False)
+        self.mail_e.setMaximumSize(300, 20)
+        self.mail_e.setMinimumSize(300, 20)
+        self.mail_e.setText(self.email)
+        lo.addWidget(self.mail_e)
+
+
+        w, lo = create_w_lo(self, self.verticalLayout)
+        company_l = QtWidgets.QLabel(parent=w)
+        company_l.setText("Компания:")
+        company_l.setToolTip("Для статистики")
+        lo.addWidget(company_l)
+        lo.addItem(get_h_spacer())
+        self.company_e = CustomEntry(w, padding=False)
+        self.company_e.setMaximumSize(300, 20)
+        self.company_e.setMinimumSize(300, 20)
+        self.company_e.setText(self.company)
+        lo.addWidget(self.company_e)
+        self.verticalLayout.addItem(get_v_spacer())
+
+        self.save_btn = DarkBtn_Ui(self, "save_settings")
+        self.save_btn.clicked.connect(lambda : self.save())
+        self.verticalLayout.addWidget(self.save_btn)
+
+
+        self.setWindowTitle("Информация о пользователе")
+
+    def closeEvent(self, event):
+        self.parent_obj.settings_window = None
+
+
+    def save(self):
+        name = self.name_e.text()
+        email = self.mail_e.text()
+        company = self.company_e.text()
+        update_config_param("name", name)
+        update_config_param("email", email)
+        update_config_param("company", company)
+
+        self.closeEvent(None)
+        self.destroy()
+
+
+class ApplicationInfo(QtWidgets.QWidget):
+    def __init__(self, parent):
+        super(ApplicationInfo, self).__init__()
+        set_window_icon(self)
+        self.parent_obj = parent
+        self.setObjectName("settings")
+        self.setStyleSheet("""
+           QWidget#settings{
+           background: #f9f9f9;
+           }
+           """)
+        self.resize(300, 100)
+
+        self.version = get_app_version()
+        self.end_date = get_config_param("end_date")
+
+        self.verticalLayout = QtWidgets.QVBoxLayout(self)
+        self.verticalLayout.setSpacing(0)
+
+        w, lo = create_w_lo(self, self.verticalLayout)
+        name_l = QtWidgets.QLabel(parent=w)
+        name_l.setText(f"""Автор: Первушин Андрей
+        
+Для связи:
+    Tg: @degree298
+    E-mail: lkmshik@yandex.ru
+    https://лкмщик.рф
+        
+Версия: {self.version}
+Ключ приложения действителен до {self.end_date}
+Для продления необходимо обратиться по почте выше.
+        
+ЛКМщик - среда разработки лакокрасочных рецептур. © 2022-2023""")
+        lo.addWidget(name_l)
+        lo.addItem(get_h_spacer())
+
+        self.setWindowTitle("Информация о приложении")
+
+    def closeEvent(self, event):
+        self.parent_obj.info_window = None
+
+

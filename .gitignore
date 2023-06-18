@@ -1,2 +1,8 @@
 /common/secrets.py
 .idea
+/configuration
+/activation.py
+/errors.log
+/saves/Примеры/test
+/test2.py
+/global_reactives.gdb

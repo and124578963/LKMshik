@@ -10,17 +10,19 @@ ENCRYPT_REACTIVES = 0
 
 
 import logging
-logging.basicConfig(filename='errors.log', filemode='w', level=logging.INFO, format="%(asctime)s;%(levelname)s;%(message)s",
+logging.basicConfig(filename='./errors.log', filemode='w', level=logging.INFO, format="%(asctime)s;%(levelname)s;%(message)s",
                     datefmt="%Y-%m-%d %H:%M:%S")
 
-
-if not os.path.isfile('configuration'):
-    with SqliteDict('configuration') as mydict:
+if not os.path.isfile('./configuration'):
+    with SqliteDict('./configuration') as mydict:
         mydict.commit()
+
+def get_app_version():
+    return "2.0 от 01.07.2023"
 
 def get_database_path():
     global DATABASE_PATH
-    with SqliteDict('configuration') as mydict:
+    with SqliteDict('../configuration') as mydict:
         key = "database_path"
         database_path = mydict.get(key, "reactives.db")
         # if database_path is None:
@@ -31,8 +33,9 @@ def get_database_path():
         DATABASE_PATH = database_path
         return database_path
 
+
 def get_suhoi_type():
-    with SqliteDict('configuration') as mydict:
+    with SqliteDict('./configuration') as mydict:
         key = "suhoi_type"
         suhoi_type = mydict.get(key, None)
         if suhoi_type is None:
@@ -41,12 +44,18 @@ def get_suhoi_type():
             suhoi_type = Secrets().decrypt_data(suhoi_type).decode()
         return suhoi_type
 
+def get_config_param(name:str, password=None):
+    with SqliteDict('./configuration') as mydict:
+        param_value = mydict.get(name, None)
+        if param_value is not None:
+            param_value = Secrets().decrypt_data(param_value, password=password).decode()
+        return param_value
 
-def update_config_param(param_name, new_value):
-        with SqliteDict("configuration") as mydict:
-            new_value = Secrets().encrypt_data(new_value) if param_name != 'database_path' else new_value
+
+def update_config_param(param_name, new_value, password=None):
+        with SqliteDict("./configuration") as mydict:
+            new_value = Secrets().encrypt_data(new_value, password=password) if param_name != 'database_path' else new_value
             check = mydict.get(param_name, None)
-            print(check)
             if check is None:
                 mydict[param_name] = new_value
             else:

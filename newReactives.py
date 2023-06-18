@@ -3,9 +3,9 @@ from PyQt6.QtCore import QSize, Qt, QAbstractTableModel, QSortFilterProxyModel
 from PyQt6.QtGui import QIcon
 from PyQt6.QtWidgets import QWidget, QDialog, QFileDialog
 
-from common.ui_elements import generate_color, generate_font
+from common.ui_elements import generate_color, generate_font, set_window_icon
 from component_card import ComponentCard, EditComponentCard
-from settings import TABLE_DICT, get_category, PASSPORT, update_config_param
+from common.settings import TABLE_DICT, get_category, PASSPORT, update_config_param
 from database import DB
 import pandas as pd
 
@@ -21,6 +21,7 @@ class MyComponentsUi(QWidget):
         self.dialogs = []
         self.global_component_f = False
         self.setupUi()
+        set_window_icon(self)
         MyComponentsUi._instance = True
 
     def closeEvent(self, event):
@@ -264,7 +265,11 @@ class MyComponentsUi(QWidget):
         self.global_component_f = not self.global_component_f
         if self.global_component_f:
             self.db = DB(global_check=self.global_component_f)
-            self.db.update_reactives_base()
+            try:
+                self.db.update_reactives_base()
+            except:
+                InfoWindow("Не получилось загрузить общую базу").exec()
+
             self.add_btn.hide()
             self.del_btn.hide()
             self.setting_btn.hide()
@@ -316,6 +321,7 @@ class DarkBtn_Ui(QtWidgets.QPushButton):
             "save_settings": ["images/edit_proj.png", "  Сохранить изменения"],
             "calc": ["images/calc.png", "  Рассчитать"],
             "brish": ["images/brish.png", "  Указать"],
+            "menu": ["images/menu_project.png", ""],
         }
         self.setSizeIncrement(QtCore.QSize(0, 0))
         self.setCursor(QtGui.QCursor(QtCore.Qt.CursorShape.PointingHandCursor))
@@ -351,8 +357,11 @@ class DarkBtn_Ui(QtWidgets.QPushButton):
 QPushButton:pressed  {
 border: 1px solid #eeedeb;
   }
-        
-        """)
+   QPushButton::menu-indicator { image: none; 
+   height: 0px;
+    width: 0px;
+   }
+""")
 
 
 class TableModel(QAbstractTableModel):
@@ -650,6 +659,7 @@ class InfoWindow(QDialog):
 
     def __init__(self, text):
         super().__init__()
+        set_window_icon(self)
         self.setObjectName("background")
         self.resize(497, 183)
         self.setStyleSheet("QWidget#background{\n"
@@ -704,6 +714,7 @@ class InfoWindow(QDialog):
 class SettingsWindow(QWidget):
     def __init__(self):
         super().__init__()
+        set_window_icon(self)
         self.db = DB()
         self.setObjectName("Form")
         self.resize(426, 112)

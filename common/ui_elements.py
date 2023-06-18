@@ -8,7 +8,7 @@ from PyQt6 import QtGui, QtCore, QtWidgets
 from PyQt6.QtCore import QStringListModel, QRegularExpression, Qt, QSize, QRect, QModelIndex
 from PyQt6.QtGui import QImage, QFont, QRegularExpressionValidator, QIcon, QColor
 from PIL import Image, ImageColor
-from PIL.ImageQt import ImageQt
+from PIL.ImageQt import ImageQt, QPixmap
 from PyQt6.QtWidgets import QAbstractItemView, QCompleter, QColorDialog
 
 import sys
@@ -40,6 +40,7 @@ class HoverableButton(QtWidgets.QPushButton):
             "2k": "Показать второй компонент",
             "settings": "Настройки расчета",
             "menu": "Дополнительные действия",
+            "swap_r": "",
         }
         self.setToolTip(tooltip_dict[_type])
 
@@ -56,6 +57,7 @@ class HoverableButton(QtWidgets.QPushButton):
             "2k": ["images/2K.png", "images/2K-on.png"],
             "settings": ["images/settings_btn.png", "images/settings_btn-on.png"],
             "menu": ["images/menu.png", "images/menu-on.png"],
+            "swap_r": ["images/swap_icon.png", "images/swap_icon-on.png"],
         }
         self.icon = QtGui.QIcon()
         self.icon.addPixmap(QtGui.QPixmap(img_dict[_type][0]), QtGui.QIcon.Mode.Normal, QtGui.QIcon.State.Off)
@@ -85,10 +87,12 @@ class HoverableButton(QtWidgets.QPushButton):
     def enterEvent(self, event):
         self.hover.emit("enterEvent")
         self.setIcon(self.icon_on)
+        super(HoverableButton, self).enterEvent(event)
 
     def leaveEvent(self, event):
         self.hover.emit("leaveEvent")
         self.setIcon(self.icon)
+        super(HoverableButton, self).leaveEvent(event)
 
     def set_pressed(self):
         if self.icon_off is self.icon:
@@ -97,6 +101,51 @@ class HoverableButton(QtWidgets.QPushButton):
         else:
             self.icon = self.icon_off
             self.setIcon(self.icon)
+
+
+class DragHoverableButton(QtWidgets.QLabel):
+    hover = QtCore.pyqtSignal(str)
+    def __init__(self, parent, _type, size, move_area_obj):
+        super(DragHoverableButton, self).__init__(parent)
+        self.move_area_obj = move_area_obj
+
+
+        self.pixmap = QPixmap("images/swap_icon.png").scaled(size[0], size[1], aspectRatioMode=Qt.AspectRatioMode.KeepAspectRatio,
+                                                 transformMode=Qt.TransformationMode.SmoothTransformation)
+        self.pixmap_on = QPixmap("images/swap_icon-on.png").scaled(size[0], size[1],
+                                                                       aspectRatioMode=Qt.AspectRatioMode.KeepAspectRatio,
+                                                                       transformMode=Qt.TransformationMode.SmoothTransformation)
+
+        self.setPixmap(self.pixmap)
+
+    def enterEvent(self, event):
+        self.hover.emit("enterEvent")
+        self.setPixmap(self.pixmap_on)
+        # self.setIcon(self.icon_on)
+        self.move_area_obj.acceptMove = True
+        super(DragHoverableButton, self).enterEvent(event)
+
+    def leaveEvent(self, event):
+        self.hover.emit("leaveEvent")
+        # self.setIcon(self.icon)
+        self.setPixmap(self.pixmap)
+        self.move_area_obj.acceptMove = False
+        super(DragHoverableButton, self).leaveEvent(event)
+
+    # def mousePressEvent(self, event: QtGui.QMouseEvent):
+    #     self.move_area_obj.mousePressEvent(event)
+
+    # def mouseMoveEvent(self, event):
+    #     self.move_area_obj.mouseMoveEvent(event)
+    #
+    # def mouseReleaseEvent(self, event):
+    #     self.move_area_obj.mouseReleaseEvent(event)
+    #
+    # def dragEnterEvent(self, event):
+    #     self.move_area_obj.dragEnterEvent(event)
+    #
+    # def dropEvent(self, event: QtGui.QMouseEvent):
+    #     self.move_area_obj.dropEvent(event)
 
 
 class ColorButton(QtWidgets.QPushButton):
@@ -371,6 +420,7 @@ class ChoiceColor(QtWidgets.QWidget):
         self.verticalLayout.setContentsMargins(0, 0, 0, 0)
         self.verticalLayout.setSpacing(0)
         self.tabWidget = QtWidgets.QTabWidget(parent=self)
+        set_window_icon(self)
 
         self.ral_tab = QtWidgets.QWidget()
         self.verticalLayout_3 = QtWidgets.QVBoxLayout(self.ral_tab)
@@ -662,3 +712,7 @@ def change_position_window(self, x: int = 0, y: int = 0):
     coord.setX(x)
     coord.setY(y)
     self.move(coord)
+
+
+def set_window_icon(self):
+    self.setWindowIcon(QtGui.QIcon('images/icon.png'))

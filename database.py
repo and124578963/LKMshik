@@ -8,7 +8,7 @@ from Crypto.Hash import MD5
 from Crypto import Random
 
 
-from settings import ENCRYPT_REACTIVES, get_database_path
+from common.settings import ENCRYPT_REACTIVES, get_database_path
 
 
 def connect_db_decorator(func):
@@ -87,6 +87,8 @@ class DB:
             raise ValueError
 
     def sqlite_lower(self, value_):
+        if value_ is None:
+            value_ = ""
         return value_.lower()
 
     def sqlite_decode(self, value_):
@@ -407,7 +409,7 @@ class DB:
     @connect_db_decorator
     def search_records(self, columns, group, search, requests):
         global password
-
+        print(f'''SELECT {columns} FROM {group} WHERE {requests}''')
         self.c.execute(f'''SELECT {columns} FROM {group} WHERE {requests}''', search, )
         fetchall = self.c.fetchall()
         if self.global_check:

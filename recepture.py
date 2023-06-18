@@ -1,4 +1,3 @@
-import copy
 import logging
 import os
 import shutil
@@ -13,22 +12,21 @@ from win32com import client
 
 import numpy as np
 from PyQt6 import QtCore, QtGui, QtWidgets
-from PyQt6.QtCore import Qt, QRegularExpression, QSize
-from PyQt6.QtGui import QRegularExpressionValidator
-from PyQt6.QtWidgets import QCompleter, QInputDialog, QLineEdit, QFileDialog
+from PyQt6.QtCore import Qt, QSize
+from PyQt6.QtWidgets import QCompleter, QFileDialog
 from sqlitedict import SqliteDict
 
 from common.secrets import Secrets
 from common.ui_elements import HoverableButton, MenuButton, ColorButton, CustomMenu, CustomRadioBtn, generate_color, \
     CustomListItem, generate_font, MplCanvas, delete_chield, create_w_lo, normalize_number, get_numeric_validator, \
-    insert_w_lo, get_h_spacer, get_v_spacer, change_position_window, ChoiceColor
+    insert_w_lo, get_h_spacer, get_v_spacer, change_position_window, ChoiceColor, set_window_icon
 from component_card import CustomEntry, CustomCombobox
 from database import DB
 from typing import List, Tuple
 import xml.etree.ElementTree as ET
 import requests
 from newReactives import InfoWindow, DarkBtn_Ui
-from settings import get_suhoi_type, update_config_param
+from common.settings import get_suhoi_type, update_config_param
 from skimage import color as color_kit
 
 
@@ -58,6 +56,7 @@ class ReceptureWindow(QtWidgets.QWidget):
         self.list_comp_2_row_obj = []
         self.list_experiment_obj = []
 
+        set_window_icon(self)
         self.verticalLayout_3 = QtWidgets.QVBoxLayout(self)
         self.verticalLayout_3.setContentsMargins(0, 0, 0, 0)
         self.verticalLayout_3.setSpacing(0)
@@ -1148,14 +1147,6 @@ class Ui_Component(QtWidgets.QWidget):
                     obj.set_number(number)
                     number += 1
 
-    def eventFilter(self, watched, event):
-        if event.type() == QtCore.QEvent.Type.MouseButtonPress:
-            self.mousePressEvent(event)
-        elif event.type() == QtCore.QEvent.Type.MouseMove:
-            self.mouseMoveEvent(event)
-        elif event.type() == QtCore.QEvent.Type.MouseButtonRelease:
-            self.mouseReleaseEvent(event)
-        return super().eventFilter(watched, event)
 
     def get_index(self, pos):
         for i in range(self.gridLayout.count()):
@@ -1687,7 +1678,7 @@ class ReceptureDataModel:
         all_price *= Decimal(self.price_K)
 
         self.price = all_price
-        print(f"цена {self.price}")
+
 
     def all_mass_for_suhoi_f(self):
         all_mass = Decimal(0)
@@ -1729,6 +1720,7 @@ class ReceptureDataModel:
             all_mass = self.all_mass_for_suhoi
 
         all_suhoi = Decimal(0)
+
         if for_volume:
             suhoi_check = 1  # учитывать всё
         else:
@@ -1875,35 +1867,36 @@ class ReceptureDataModel:
         filler_and_pigm_volume = Decimal(0)
         film_volume = Decimal(0)
 
-        for i in self.list_of_pigment_objects:
-            filler_and_pigm_volume += (
-                    (i.mass) / (i.density))
-        for i in self.list_of_filler_objects:
-            filler_and_pigm_volume += (
-                    (i.mass) / (i.density))
-        for i in self.list_of_pigmpast_objects:
-            filler_and_pigm_volume += (
-                    (i.mass * i.suhoi_pigm) / (
-                i.density_pigm))
-
-        for i in self.list_of_film_objects:
-            film_volume += ((i.mass * i.suhoi) / (
-                i.density_dry))
-        for i in self.list_of_hardener_objects:
-            film_volume += ((i.mass_for_params * i.suhoi) / (
-                i.density_dry))
-        for i in self.list_of_pigmpast_objects:
-            film_volume += (
-                    i.mass * i.suhoi_film /
-                    i.density_dry)
-
-        for i in self.list_of_additive_objects:
-            if i.type.lower() == 'пластификатор':
-                film_volume += ((i.mass * i.suhoi) / (
-                    i.density))
-
         try:
+            for i in self.list_of_pigment_objects:
+                filler_and_pigm_volume += (
+                        (i.mass) / (i.density))
+            for i in self.list_of_filler_objects:
+                filler_and_pigm_volume += (
+                        (i.mass) / (i.density))
+            for i in self.list_of_pigmpast_objects:
+                filler_and_pigm_volume += (
+                        (i.mass * i.suhoi_pigm) / (
+                    i.density_pigm))
+
+            for i in self.list_of_film_objects:
+                film_volume += ((i.mass * i.suhoi) / (
+                    i.density_dry))
+            for i in self.list_of_hardener_objects:
+                film_volume += ((i.mass_for_params * i.suhoi) / (
+                    i.density_dry))
+            for i in self.list_of_pigmpast_objects:
+                film_volume += (
+                        i.mass * i.suhoi_film /
+                        i.density_dry)
+
+            for i in self.list_of_additive_objects:
+                if i.type.lower() == 'пластификатор':
+                    film_volume += ((i.mass * i.suhoi) / (
+                        i.density))
+
             okp = (filler_and_pigm_volume * 100) / (filler_and_pigm_volume + film_volume)
+
         except Exception as e:
             logging.error(e, exc_info=True)
             okp = Decimal(0)
@@ -2027,6 +2020,11 @@ class ReceptureDataModel:
             if i.type.lower() == 'пластификатор':
                 film_mass += i.mass * i.suhoi
 
+        if film_mass <= 0:
+            self.okp_kokp = Decimal(0)
+            self.kokp = Decimal(0)
+            return
+
         for i in self.list_of_pigment_objects:
             filler_and_pigm_density += ((i.mass * i.density)
                                         / filler_and_pigm_mass)
@@ -2126,6 +2124,7 @@ class ReceptureSettings(QtWidgets.QWidget):
 
     def __init__(self, parent: ReceptureWindow):
         super(ReceptureSettings, self).__init__()
+        set_window_icon(self)
         self.parent_obj = parent
         self.setObjectName("rec_settings")
         self.setStyleSheet("""
@@ -2243,12 +2242,25 @@ class Component:
         self.name = name
         self.mass = Decimal(mass.replace(",", "."))
         valuta = self.db.get_info_reactive(category, self.name, 'valuta')[0][0]
-        price = Decimal(self.db.get_info_reactive(category, self.name, 'price')[0][0].replace(",", "."))
-        if valuta != 'Руб':
-            self.price = self.convert_price(valuta, price)
-        else:
-            self.price = price
+        price = self.get_and_fix_from_db(category, self.name, 'price')
+        try:
+            if valuta != 'Руб':
+                self.price = self.convert_price(valuta, price)
+            else:
+                self.price = price
+        except Exception as e:
+            logging.error("Не удалось перевести цену", e)
+            self.price = Decimal(0)
         self.dry_mass = None
+
+    def get_and_fix_from_db(self, category, component, param) -> Decimal:
+        result = self.db.get_info_reactive(category, component, param)[0][0].replace(",", ".")
+        try:
+            result = Decimal(result)
+        except Exception as e:
+            result = Decimal(0)
+            logging.error(f"Ошибка при создании объекта {self.name}", e)
+        return result
 
     def convert_price(self, valuta: str, price: Decimal) -> Decimal:
         get_xml = requests.get(
@@ -2273,7 +2285,7 @@ class Component:
 class Solvents(Component):
     def __init__(self, name, mass):
         super(Solvents, self).__init__(name, mass, 'Solvents')
-        self.density = Decimal(self.db.get_info_reactive('Solvents', self.name, 'density')[0][0].replace(",", "."))
+        self.density = self.get_and_fix_from_db('Solvents', self.name, 'density')
         self.density_solvent = self.density
         self.suhoi = Decimal('0')
         self.dry_mass = Decimal('0')
@@ -2288,9 +2300,9 @@ class Solvents(Component):
 class Pigments(Component):
     def __init__(self, name, mass):
         super(Pigments, self).__init__(name, mass, 'Pigments')
-        self.density = Decimal(self.db.get_info_reactive('Pigments', self.name, 'density')[0][0].replace(",", "."))
-        self.maslo = Decimal(self.db.get_info_reactive('Pigments', self.name, 'maslo')[0][0].replace(",", "."))
-        self.hiding = Decimal(self.db.get_info_reactive('Pigments', self.name, 'hiding')[0][0].replace(",", "."))
+        self.density = self.get_and_fix_from_db('Pigments', self.name, 'density')
+        self.maslo = self.get_and_fix_from_db('Pigments', self.name, 'maslo')
+        self.hiding = self.get_and_fix_from_db('Pigments', self.name, 'hiding')
         self.suhoi = Decimal("1")
         self.dry_mass = Decimal(mass.replace(",", "."))
 
@@ -2305,8 +2317,8 @@ class Pigments(Component):
 class Fillers(Component):
     def __init__(self, name, mass):
         super(Fillers, self).__init__(name, mass, 'Fillers')
-        self.density = Decimal(self.db.get_info_reactive('Fillers', self.name, 'density')[0][0].replace(",", "."))
-        self.maslo = Decimal(self.db.get_info_reactive('Fillers', self.name, 'maslo')[0][0].replace(",", "."))
+        self.density = self.get_and_fix_from_db('Fillers', self.name, 'density')
+        self.maslo = self.get_and_fix_from_db('Fillers', self.name, 'maslo')
         self.suhoi = Decimal("1")
         self.dry_mass = Decimal(mass.replace(",", "."))
 
@@ -2320,15 +2332,12 @@ class Fillers(Component):
 class Films(Component):
     def __init__(self, name, mass):
         super(Films, self).__init__(name, mass, 'Films')
-        self.suhoi = Decimal(self.db.get_info_reactive('Films', self.name, 'suhoi')[0][0].replace(",", "."))
-        self.density_dry = Decimal(self.db.get_info_reactive('Films', self.name, 'density_dry')[0][0].replace(",", "."))
-        self.density = Decimal(self.db.get_info_reactive('Films', self.name, 'density')[0][0].replace(",", "."))
-        self.density_solvent = Decimal(self.db.get_info_reactive('Films', self.name, 'density_solvent')[0][0].replace(",", "."))
+        self.suhoi = self.get_and_fix_from_db('Films', self.name, 'suhoi')
+        self.density_dry = self.get_and_fix_from_db('Films', self.name, 'density_dry')
+        self.density = self.get_and_fix_from_db('Films', self.name, 'density')
+        self.density_solvent = self.get_and_fix_from_db('Films', self.name, 'density_solvent')
         self.dry_mass = Decimal(mass.replace(",", ".")) * self.suhoi
-        func_groups = self.db.get_info_reactive('Films', self.name, 'func_groups')[0][0].replace(",", ".")
-        if func_groups.strip() in ["", "."]:
-            func_groups = "0"
-        self.func_groups = Decimal(func_groups)
+        self.func_groups = self.get_and_fix_from_db('Films', self.name, 'func_groups')
 
     def to_string(self):
         return f"""Пленкообразователь:
@@ -2343,11 +2352,11 @@ class Films(Component):
 class Additives(Component):
     def __init__(self, name, mass):
         super(Additives, self).__init__(name, mass, 'Additives')
-        self.suhoi = Decimal(self.db.get_info_reactive('Additives', self.name, 'suhoi')[0][0].replace(",", "."))
+        self.suhoi = self.get_and_fix_from_db('Additives', self.name, 'suhoi')
         self.dosage = self.db.get_info_reactive('Additives', self.name, 'dosage')[0][0]
-        self.density = Decimal(self.db.get_info_reactive('Additives', self.name, 'density')[0][0].replace(",", "."))
+        self.density = self.get_and_fix_from_db('Additives', self.name, 'density')
         self.type = self.db.get_info_reactive('Additives', self.name, 'type')[0][0]
-        self.density_solvent = Decimal(self.db.get_info_reactive('Additives', self.name, 'density_solvent')[0][0].replace(",", "."))
+        self.density_solvent = self.get_and_fix_from_db('Additives', self.name, 'density_solvent')
         self.dry_mass = Decimal(mass.replace(",", ".")) * self.suhoi
 
     def to_string(self):
@@ -2362,15 +2371,15 @@ class Additives(Component):
 class Pigmpasts(Component):
     def __init__(self, name, mass):
         super(Pigmpasts, self).__init__(name, mass, 'Pigmpast')
-        self.suhoi = Decimal(self.db.get_info_reactive('Pigmpast', self.name, 'suhoi')[0][0].replace(",", "."))
-        self.suhoi_pigm = Decimal(self.db.get_info_reactive('Pigmpast', self.name, 'suhoi_pigm')[0][0].replace(",", "."))
-        self.suhoi_film = Decimal(self.db.get_info_reactive('Pigmpast', self.name, 'suhoi_film')[0][0].replace(",", "."))
-        self.maslo = Decimal(self.db.get_info_reactive('Pigmpast', self.name, 'maslo')[0][0].replace(",", "."))
-        self.density = Decimal(self.db.get_info_reactive('Pigmpast', self.name, 'density')[0][0].replace(",", "."))
-        self.density_dry = Decimal(self.db.get_info_reactive('Pigmpast', self.name, 'density_dry')[0][0].replace(",", "."))
-        self.density_pigm = Decimal(self.db.get_info_reactive('Pigmpast', self.name, 'density_pigm')[0][0].replace(",", "."))
-        self.hiding = Decimal(self.db.get_info_reactive('Pigmpast', self.name, 'hiding')[0][0].replace(",", "."))
-        self.density_solvent = Decimal(self.db.get_info_reactive('Pigmpast', self.name, 'density_solvent')[0][0].replace(",", "."))
+        self.suhoi = self.get_and_fix_from_db('Pigmpast', self.name, 'suhoi')
+        self.suhoi_pigm = self.get_and_fix_from_db('Pigmpast', self.name, 'suhoi_pigm')
+        self.suhoi_film = self.get_and_fix_from_db('Pigmpast', self.name, 'suhoi_film')
+        self.maslo = self.get_and_fix_from_db('Pigmpast', self.name, 'maslo')
+        self.density = self.get_and_fix_from_db('Pigmpast', self.name, 'density')
+        self.density_dry = self.get_and_fix_from_db('Pigmpast', self.name, 'density_dry')
+        self.density_pigm = self.get_and_fix_from_db('Pigmpast', self.name, 'density_pigm')
+        self.hiding = self.get_and_fix_from_db('Pigmpast', self.name, 'hiding')
+        self.density_solvent = self.get_and_fix_from_db('Pigmpast', self.name, 'density_solvent')
         self.dry_mass = Decimal(mass.replace(",", ".")) * self.suhoi
 
     def to_string(self):
@@ -2390,16 +2399,16 @@ class Pigmpasts(Component):
 class Hardeners(Component):
     def __init__(self, name, mass):
         super(Hardeners, self).__init__(name, mass, 'Hardener')
-        self.suhoi = Decimal(self.db.get_info_reactive('Hardener', self.name, 'suhoi')[0][0].replace(",", "."))
+        self.suhoi = self.get_and_fix_from_db('Hardener', self.name, 'suhoi')
         self.func_groups = self.db.get_info_reactive('Hardener', self.name, 'func_groups')[0][0]
-        self.density = Decimal(self.db.get_info_reactive('Hardener', self.name, 'density')[0][0].replace(",", "."))
-        self.density_dry = Decimal(self.db.get_info_reactive('Hardener', self.name, 'density_dry')[0][0].replace(",", "."))
+        self.density = self.get_and_fix_from_db('Hardener', self.name, 'density')
+        self.density_dry = self.get_and_fix_from_db('Hardener', self.name, 'density_dry')
         countable = self.db.get_info_reactive('Hardener', self.name, 'countable')[0][0]
         if countable.lower().strip() == 'да':
             self.mass_for_params = self.mass
         else:
             self.mass_for_params = Decimal('0')  # для расчета окп кокп СП
-        self.density_solvent = Decimal(self.db.get_info_reactive('Hardener', self.name, 'density_solvent')[0][0].replace(",", "."))
+        self.density_solvent = self.get_and_fix_from_db('Hardener', self.name, 'density_solvent')
         self.dry_mass = Decimal(mass.replace(",", ".")) * self.suhoi
 
     def to_string(self):
@@ -2422,6 +2431,7 @@ class CountAdditiveWindow(QtWidgets.QWidget):
         self.db = DB()
         self.type = None
 
+        set_window_icon(self)
         self.setObjectName("CountAdditiveWindow")
         self.setStyleSheet("""
         QWidget#CountAdditiveWindow{
@@ -2685,6 +2695,8 @@ class CountAdditiveWindow(QtWidgets.QWidget):
 class CountHardenerWindow(QtWidgets.QWidget):
     def __init__(self, parent: ReceptureWindow):
         super(CountHardenerWindow, self).__init__()
+        set_window_icon(self)
+
         self.recepture = parent
         self.first_row = 2
         self.list_checkbox = []
@@ -2925,6 +2937,7 @@ class CountHardenerWindow(QtWidgets.QWidget):
 class RecountOnMaslo(QtWidgets.QWidget):
     def __init__(self, parent: ReceptureWindow):
         super(RecountOnMaslo, self).__init__()
+        set_window_icon(self)
         self.recepture = parent
         self.first_row = 2
         self.list_checkbox = []
@@ -3098,6 +3111,7 @@ class RecountOnMaslo(QtWidgets.QWidget):
 class CountReceptureConstant(QtWidgets.QWidget):
     def __init__(self, parent: ReceptureWindow):
         super(CountReceptureConstant, self).__init__()
+        set_window_icon(self)
         self.setWindowTitle("Пересчет рецептуры по константе наполнения")
         self.recepture = parent
         self.horizontalLayout = QtWidgets.QHBoxLayout(self)
@@ -3530,6 +3544,7 @@ class CountReceptureCombo(CountReceptureConstant):
 class PhilumWindow(QtWidgets.QWidget):
     def __init__(self, parent: ReceptureWindow):
         super(PhilumWindow, self).__init__()
+        set_window_icon(self)
         self.recepture = parent
         self.setMinimumSize(400, 400)
         self.setWindowTitle("Справочные филумы компонентов")
@@ -3605,6 +3620,7 @@ class PhilumWindow(QtWidgets.QWidget):
 class SaveAsWindow(QtWidgets.QWidget):
     def __init__(self, parent: ReceptureWindow, project, iteration, save_callback):
         super(SaveAsWindow, self).__init__()
+        set_window_icon(self)
         self.project = project
         self.iteration = iteration
         self.parent_obj = parent

@@ -1,20 +1,19 @@
 import webbrowser
 
-from PIL import Image, ImageColor
-from PIL.ImageQt import ImageQt
 from PyQt6 import QtCore, QtGui, QtWidgets
 from PyQt6.QtCore import QRegularExpression
-from PyQt6.QtGui import QColor, QImage, QIcon, QRegularExpressionValidator
+from PyQt6.QtGui import QColor, QIcon, QRegularExpressionValidator
 from PyQt6.QtWidgets import QWidget, QGridLayout, QFileDialog, QColorDialog
 
-from common.ui_elements import generate_color, CustomEntry, CustomCombobox, ColorButton
+from common.ui_elements import generate_color, CustomEntry, CustomCombobox, ColorButton, set_window_icon
 from database import DB
-from settings import TABLE_DICT, get_category, get_lables, get_columns, get_desc
+from common.settings import TABLE_DICT, get_category, get_lables, get_columns, get_desc
 
 
 class ComponentCard(QWidget):
     def __init__(self, parent_window, category, btn_save_name='Сохранить', global_check=False):
         super().__init__()
+        set_window_icon(self)
         self.global_check = global_check
         self.parent_window = parent_window
         self.db = DB(global_check=global_check)
