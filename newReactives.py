@@ -1,3 +1,5 @@
+import os
+
 from PyQt6 import QtCore, QtGui, QtWidgets
 from PyQt6.QtCore import QSize, Qt, QAbstractTableModel, QSortFilterProxyModel
 from PyQt6.QtGui import QIcon
@@ -10,9 +12,10 @@ from database import DB
 import pandas as pd
 import random
 
+BASE_DIR = os.path.dirname(__file__)
+
 class MyComponentsUi(QWidget):
     _instance = False  # Keep instance reference
-
 
     def __init__(self):
         super(MyComponentsUi, self).__init__()
@@ -136,7 +139,7 @@ class MyComponentsUi(QWidget):
         self.label = QtWidgets.QLabel(parent=self.toolbar)
         self.label.setMaximumSize(QtCore.QSize(32, 32))
         self.label.setTextFormat(QtCore.Qt.TextFormat.PlainText)
-        self.label.setPixmap(QtGui.QPixmap("images/search.png"))
+        self.label.setPixmap(QtGui.QPixmap(os.path.join(BASE_DIR, "images/search.png")))
         self.label.setScaledContents(True)
         self.horizontalLayout_2.addWidget(self.label)
 
@@ -329,7 +332,7 @@ class DarkBtn_Ui(QtWidgets.QPushButton):
         self.setTabletTracking(False)
         self.setAcceptDrops(False)
         icon = QtGui.QIcon()
-        icon.addPixmap(QtGui.QPixmap(dict_btn_img[name][0]), QtGui.QIcon.Mode.Normal, QtGui.QIcon.State.Off)
+        icon.addPixmap(QtGui.QPixmap(os.path.join(BASE_DIR, dict_btn_img[name][0])), QtGui.QIcon.Mode.Normal, QtGui.QIcon.State.Off)
         self.setIcon(icon)
         self.setText(dict_btn_img[name][1])
         self.setIconSize(QtCore.QSize(16, 16))
@@ -506,7 +509,7 @@ class CategoryButton(QtWidgets.QPushButton):
 
     def setSelected(self):
         icon = QtGui.QIcon()
-        icon.addPixmap(QtGui.QPixmap("images/selected.png"), QtGui.QIcon.Mode.Normal, QtGui.QIcon.State.Off)
+        icon.addPixmap(QtGui.QPixmap(os.path.join(BASE_DIR, "images/selected.png")), QtGui.QIcon.Mode.Normal, QtGui.QIcon.State.Off)
         self.setIcon(icon)
         self.setIconSize(QSize(26, 26))
         self.setObjectName("selected")
@@ -565,8 +568,8 @@ class SwitchGlobalButton(QtWidgets.QPushButton):
         self.setText("Моя лаборатория")
         self.setStyleSheet(
             """
-               QPushButton {
-            background-image: url(images/arrow-left.png);
+               QPushButton {{
+            background-image: url({});
             background-origin: content;
             background-position: left bottom;
 
@@ -575,19 +578,20 @@ class SwitchGlobalButton(QtWidgets.QPushButton):
             border: 0px;
             padding: 15px 35px 15px 30px;
              color: rgb(27, 37, 36);
-        }
-     QPushButton:hover{
+        }}
+     QPushButton:hover{{
               color: rgb(61, 117, 138);
-              background-image: url(images/arrow-left-on.png);
-            }
-            """)
-
+              background-image: url({});
+            }}
+            """.format(BASE_DIR.replace("\\","/") + "/images/arrow-left.png",
+                       BASE_DIR.replace("\\","/") +  "/images/arrow-left-on.png"
+                       ))
 
     def setNotSelected(self):
         self.setText("Глобальная база")
         self.setStyleSheet("""        
-        QPushButton {
-            background-image: url(images/arrow-right.png);
+        QPushButton {{
+            background-image: url({});
             background-origin: content;
             background-position: right bottom;
 
@@ -596,13 +600,13 @@ class SwitchGlobalButton(QtWidgets.QPushButton):
             border: 0px;
             padding: 15px 70px 15px 15px;
              color: rgb(27, 37, 36);
-        }
-     QPushButton:hover{
+        }}
+     QPushButton:hover{{
               color: rgb(61, 117, 138);
-              background-image: url(images/arrow-right-on.png);
-            }
+              background-image: url({});
+            }}
 
-    """
+    """.format(BASE_DIR.replace("\\","/") + "/images/arrow-right.png", BASE_DIR.replace("\\","/") + "/images/arrow-right-on.png")
                                )
 
 
@@ -695,7 +699,7 @@ class InfoWindow(QDialog):
         self.label_2.setMaximumSize(QtCore.QSize(150, 125))
         self.label_2.setLayoutDirection(QtCore.Qt.LayoutDirection.LeftToRight)
         self.label_2.setText("")
-        self.label_2.setPixmap(QtGui.QPixmap(path))
+        self.label_2.setPixmap(QtGui.QPixmap(os.path.join(BASE_DIR, path)))
         self.label_2.setScaledContents(True)
         self.label_2.setObjectName("label_2")
         self.horizontalLayout.addWidget(self.label_2)

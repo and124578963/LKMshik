@@ -29,6 +29,7 @@ from newReactives import InfoWindow, DarkBtn_Ui
 from common.settings import get_suhoi_type, update_config_param
 from skimage import color as color_kit
 
+BASE_DIR = os.path.dirname(__file__)
 
 class ReceptureWindow(QtWidgets.QWidget):
 
@@ -1025,7 +1026,7 @@ class ComponentRow(QtWidgets.QFrame):
                       "Данная строка не будет учитываться\n" \
                       "в расчете."
 
-        self.category_icon.setText(text) if text != "" else self.category_icon.setPixmap(QtGui.QPixmap(icon_path))
+        self.category_icon.setText(text) if text != "" else self.category_icon.setPixmap(QtGui.QPixmap(os.path.join(BASE_DIR, icon_path)))
         self.category_icon.setToolTip(tooltip)
 
     def set_number(self, number: int):
@@ -3717,7 +3718,7 @@ class WordExport:
             else:
                 return
 
-            forma = 'files\\forma.docx'
+            forma = os.path.join(BASE_DIR, 'files\\forma.docx')
             shutil.copy2(forma, new_file)
             # new_file = os.path.abspath(f'documents\{self.name}.docx')
 

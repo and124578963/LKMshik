@@ -1,3 +1,4 @@
+import os
 import webbrowser
 
 from PyQt6 import QtCore, QtGui, QtWidgets
@@ -9,6 +10,7 @@ from common.ui_elements import generate_color, CustomEntry, CustomCombobox, Colo
 from database import DB
 from common.settings import TABLE_DICT, get_category, get_lables, get_columns, get_desc
 
+BASE_DIR = os.path.dirname(__file__)
 
 class ComponentCard(QWidget):
     def __init__(self, parent_window, category, btn_save_name='Сохранить', global_check=False):
@@ -148,7 +150,7 @@ class ComponentCard(QWidget):
             self.horizontalLayout_widget_buttons.addWidget(self.email_btn, 0, 2, 1, 1)
             self.color_btn = QtWidgets.QPushButton(parent=self.widget_buttons)
             self.color_btn.clicked.connect(lambda event: self.set_color())
-            self.color_btn.setIcon(QtGui.QIcon("images/black_white_background.png"))
+            self.color_btn.setIcon(QtGui.QIcon(os.path.join(BASE_DIR, "images/black_white_background.png")))
             self.horizontalLayout_widget_buttons.addWidget(self.color_btn, 0, 3, 1, 1)
             self.gridLayout.addWidget(self.widget_buttons)
             self.tds_btn.setText("ТДС")

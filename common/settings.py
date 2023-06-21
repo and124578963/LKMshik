@@ -8,11 +8,6 @@ import os.path
 
 ENCRYPT_REACTIVES = 0
 
-
-import logging
-logging.basicConfig(filename='./errors.log', filemode='w', level=logging.INFO, format="%(asctime)s;%(levelname)s;%(message)s",
-                    datefmt="%Y-%m-%d %H:%M:%S")
-
 if not os.path.isfile('./configuration'):
     with SqliteDict('./configuration') as mydict:
         mydict.commit()

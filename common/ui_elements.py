@@ -1,4 +1,5 @@
 import copy
+import os
 from decimal import Decimal
 from typing import List, Tuple
 
@@ -19,6 +20,8 @@ from matplotlib.backends.backend_qt5agg import FigureCanvasQTAgg
 from matplotlib.figure import Figure
 from scipy.optimize import curve_fit
 from skimage import color as color_kit
+
+BASE_DIR = os.path.dirname(__file__).rstrip("common").replace("\\", "/")
 
 class HoverableButton(QtWidgets.QPushButton):
     hover = QtCore.pyqtSignal(str)
@@ -60,9 +63,9 @@ class HoverableButton(QtWidgets.QPushButton):
             "swap_r": ["images/swap_icon.png", "images/swap_icon-on.png"],
         }
         self.icon = QtGui.QIcon()
-        self.icon.addPixmap(QtGui.QPixmap(img_dict[_type][0]), QtGui.QIcon.Mode.Normal, QtGui.QIcon.State.Off)
+        self.icon.addPixmap(QtGui.QPixmap(os.path.join(BASE_DIR, img_dict[_type][0])), QtGui.QIcon.Mode.Normal, QtGui.QIcon.State.Off)
         self.icon_on = QtGui.QIcon()
-        self.icon_on.addPixmap(QtGui.QPixmap(img_dict[_type][1]), QtGui.QIcon.Mode.Normal, QtGui.QIcon.State.Off)
+        self.icon_on.addPixmap(QtGui.QPixmap(os.path.join(BASE_DIR, img_dict[_type][1])), QtGui.QIcon.Mode.Normal, QtGui.QIcon.State.Off)
         self.icon_off = self.icon
         self.setIcon(self.icon)
         self.setIconSize(QtCore.QSize(*size))
@@ -110,9 +113,9 @@ class DragHoverableButton(QtWidgets.QLabel):
         self.move_area_obj = move_area_obj
 
 
-        self.pixmap = QPixmap("images/swap_icon.png").scaled(size[0], size[1], aspectRatioMode=Qt.AspectRatioMode.KeepAspectRatio,
+        self.pixmap = QPixmap(os.path.join(BASE_DIR, "images/swap_icon.png")).scaled(size[0], size[1], aspectRatioMode=Qt.AspectRatioMode.KeepAspectRatio,
                                                  transformMode=Qt.TransformationMode.SmoothTransformation)
-        self.pixmap_on = QPixmap("images/swap_icon-on.png").scaled(size[0], size[1],
+        self.pixmap_on = QPixmap(os.path.join(BASE_DIR, "images/swap_icon-on.png")).scaled(size[0], size[1],
                                                                        aspectRatioMode=Qt.AspectRatioMode.KeepAspectRatio,
                                                                        transformMode=Qt.TransformationMode.SmoothTransformation)
 
@@ -191,21 +194,21 @@ class CustomCombobox(QtWidgets.QComboBox):
         self.setCursor(QtGui.QCursor(QtCore.Qt.CursorShape.PointingHandCursor))
         self.setStyleSheet("""
 
-                QComboBox {
+                QComboBox {{
                   border-bottom: 1px solid #aaa;
                   border-right: 1px solid #aaa;
                   border-radius: 2px;
 
           padding: 2px 5px;
-                }
-                QComboBox:focus {
+                }}
+                QComboBox:focus {{
                      border-bottom: 1px solid #209fa6;
                      border-right: 1px solid #209fa6;
-                }
-                 QComboBox:hover{
+                }}
+                 QComboBox:hover{{
 
-                 }
-                 QComboBox::drop-down {
+                 }}
+                 QComboBox::drop-down {{
                     subcontrol-origin: padding;
                     subcontrol-position: top right;
                     width: 30px;
@@ -215,16 +218,15 @@ class CustomCombobox(QtWidgets.QComboBox):
                     border-left-style: solid; /* just a single line */
                     border-top-right-radius: 3px; /* same radius as the QComboBox */
                     border-bottom-right-radius: 3px;
-}
-QComboBox::down-arrow {
-    image: url(images/arrow.png);
-}
-
-QComboBox::down-arrow:on { /* shift the arrow when popup is open */
+}}
+QComboBox::down-arrow {{
+    image: url({});
+}}
+QComboBox::down-arrow:on {{ /* shift the arrow when popup is open */
     top: 1px;
     left: 1px;
-}
-                """)
+}}
+                """.format(BASE_DIR.replace("\\","/") + "/images/arrow.png"))
 
     def text(self):
         return self.currentText()
@@ -323,7 +325,8 @@ QRadioButton::indicator {{
 QRadioButton::indicator:checked {{border-image: url({1});}}
 QRadioButton::indicator:unchecked {{border-image: url({0});}}
                 
-""".format(color_dict[color][0], color_dict[color][1])
+""".format(BASE_DIR.replace("\\","/") + "/" + color_dict[color][0],
+            BASE_DIR.replace("\\","/") + "/" + color_dict[color][1])
         )
 
 
@@ -541,7 +544,7 @@ class ChoiceColor(QtWidgets.QWidget):
 
     @staticmethod
     def get_RAL_list():
-        with open('files/RALcolor', 'r') as ral_file:
+        with open(os.path.join(BASE_DIR, 'files/RALcolor'), 'r') as ral_file:
             ral_str = ral_file.read().split("\n")
             list_ral = []
             for line in ral_str:
@@ -631,7 +634,7 @@ class ChoiceColor(QtWidgets.QWidget):
 
 
 def generate_color(argb: str) -> QImage:
-    background = Image.open("images/black_white_background.png")
+    background = Image.open(os.path.join(BASE_DIR.rstrip("common").replace("\\" ,"/"), "images/black_white_background.png"))
     background = background.convert("RGBA")
     width, height = background.size
     rgba = "#" + argb[3:9] + argb[1:3]
@@ -718,4 +721,4 @@ def change_position_window(self, x: int = 0, y: int = 0):
 
 
 def set_window_icon(self):
-    self.setWindowIcon(QtGui.QIcon('images/icon.png'))
+    self.setWindowIcon(QtGui.QIcon(os.path.join(BASE_DIR, 'images/icon.png')))

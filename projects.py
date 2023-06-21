@@ -19,6 +19,7 @@ from component_card import CustomEntry
 from newReactives import DarkBtn_Ui, InfoWindow, MyComponentsUi
 from recepture import ReceptureWindow, ReceptureDataModel
 
+BASE_DIR = os.path.dirname(__file__)
 
 class Projects_Ui(object):
     instance = None
@@ -54,7 +55,7 @@ class Projects_Ui(object):
         self.logo = QtWidgets.QLabel(parent=self.left_side)
         self.logo.setMinimumSize(QtCore.QSize(0, 0))
         self.logo.setMaximumSize(QtCore.QSize(300, 100))
-        self.logo.setPixmap(QtGui.QPixmap("images/Логотип.png"))
+        self.logo.setPixmap(QtGui.QPixmap(os.path.join(BASE_DIR, "images/Логотип.png")))
         self.logo.setScaledContents(True)
         self.logo.setObjectName("logo")
         self.verticalLayout.addWidget(self.logo)
@@ -128,9 +129,6 @@ class Projects_Ui(object):
         self.horizontalLayout_2.addWidget(self.menu_b)
 
         self.verticalLayout_3.addWidget(self.toolbar)
-
-
-
 
         self.scrollArea = QtWidgets.QScrollArea(parent=self.right_side)
         self.scrollArea.setWidgetResizable(True)
@@ -323,9 +321,9 @@ class ProjectToolButton(QtWidgets.QPushButton):
 
 
         self.icon = QtGui.QIcon()
-        self.icon.addPixmap(QtGui.QPixmap(dict_type[_type][0]), QtGui.QIcon.Mode.Normal, QtGui.QIcon.State.Off)
+        self.icon.addPixmap(QtGui.QPixmap(os.path.join(BASE_DIR, dict_type[_type][0])), QtGui.QIcon.Mode.Normal, QtGui.QIcon.State.Off)
         self.icon_on = QtGui.QIcon()
-        self.icon_on.addPixmap(QtGui.QPixmap(dict_type[_type][1]), QtGui.QIcon.Mode.Normal, QtGui.QIcon.State.Off)
+        self.icon_on.addPixmap(QtGui.QPixmap(os.path.join(BASE_DIR, dict_type[_type][1])), QtGui.QIcon.Mode.Normal, QtGui.QIcon.State.Off)
         self.setIcon(self.icon)
         self.setIconSize(QtCore.QSize(20, 20))
 
@@ -861,9 +859,9 @@ class AddButtonIteration(QtWidgets.QFrame):
         }
 
         self.icon = QtGui.QIcon()
-        self.icon.addPixmap(QtGui.QPixmap(img_dict[_type][0]), QtGui.QIcon.Mode.Normal, QtGui.QIcon.State.Off)
+        self.icon.addPixmap(QtGui.QPixmap(os.path.join(BASE_DIR, img_dict[_type][0])), QtGui.QIcon.Mode.Normal, QtGui.QIcon.State.Off)
         self.icon_on = QtGui.QIcon()
-        self.icon_on.addPixmap(QtGui.QPixmap(img_dict[_type][1]), QtGui.QIcon.Mode.Normal, QtGui.QIcon.State.Off)
+        self.icon_on.addPixmap(QtGui.QPixmap(os.path.join(BASE_DIR, img_dict[_type][1])), QtGui.QIcon.Mode.Normal, QtGui.QIcon.State.Off)
         self.button.setIcon(self.icon)
         self.button.setIconSize(QtCore.QSize(48, 48))
 
