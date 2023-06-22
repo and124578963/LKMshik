@@ -4,8 +4,9 @@ import shutil
 
 import logging
 import win32com
-from PyQt6 import QtGui, QtWidgets
-from PyQt6.QtWidgets import QApplication, QMainWindow
+from PyQt5 import QtGui, QtWidgets
+from PyQt5.QtGui import QFontDatabase
+from PyQt5.QtWidgets import QApplication, QMainWindow
 
 from activation import Ui_activation_w, Ui_register_w, Ui_entry_w
 from common.ui_elements import delete_chield
@@ -21,7 +22,14 @@ class MainWindow(QMainWindow):
         self.verticalLayout = QtWidgets.QVBoxLayout(self.centralwidget)
         # self.ui = Ui_MainWindow()
         self.set_state("activation")
+        id = QFontDatabase.addApplicationFont(BASE_DIR.replace("\\", "/") + '/files/Roboto-Regular.ttf')
+        id2 = QFontDatabase.addApplicationFont(BASE_DIR.replace("\\", "/") + '/files/Roboto-Medium.ttf')
+        if id == -1 and id2 == -1:
+            print('Шрифты Roboto не установлены')
+            logging.error("Шрифты Roboto не установлены")
+
         self.setWindowIcon(QtGui.QIcon(os.path.join(BASE_DIR, 'images/icon.png')))
+        print(BASE_DIR)
 
     def closeEvent(self, a0: QtGui.QCloseEvent) -> None:
         now = str(datetime.datetime.now())[0:10]
@@ -30,7 +38,7 @@ class MainWindow(QMainWindow):
             shutil.copytree('saves/', f'backup/saves_{now}/')
 
         except Exception as e:
-            logging.error("Ошибка при создании бэкапа", e, exc_info=True)
+            logging.info("Ошибка при создании бэкапа", exc_info=True)
 
     def set_state(self, state):
         delete_chield(self.verticalLayout)
@@ -49,17 +57,12 @@ class MainWindow(QMainWindow):
             self.ui4.setupUi(self)
 
 
-
-
 def except_hook(cls, exception, traceback):
     sys.__excepthook__(cls, exception, traceback)
-
+    logging.error(exception, exc_info=True)
 
 if __name__ == "__main__":
     import sys
-    sys.excepthook = except_hook
-    app = QApplication(sys.argv)
-
     try:
         shutil.rmtree(win32com.__gen_path__ + '\\00020905-0000-0000-C000-000000000046x0x8x5')
     except Exception as e:
@@ -68,6 +71,9 @@ if __name__ == "__main__":
     logging.basicConfig(filename='./errors.log', filemode='w', level=logging.INFO,
                         format="%(asctime)s;%(levelname)s;%(message)s",
                         datefmt="%Y-%m-%d %H:%M:%S")
+    sys.excepthook = except_hook
+
+    app = QApplication(sys.argv)
 
     window = MainWindow()
     window.show()

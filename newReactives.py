@@ -1,11 +1,11 @@
 import os
 
-from PyQt6 import QtCore, QtGui, QtWidgets
-from PyQt6.QtCore import QSize, Qt, QAbstractTableModel, QSortFilterProxyModel
-from PyQt6.QtGui import QIcon
-from PyQt6.QtWidgets import QWidget, QDialog, QFileDialog
+from PyQt5 import QtCore, QtGui, QtWidgets
+from PyQt5.QtCore import QSize, Qt, QAbstractTableModel, QSortFilterProxyModel
+from PyQt5.QtGui import QIcon
+from PyQt5.QtWidgets import QWidget, QDialog, QFileDialog
 
-from common.ui_elements import generate_color, generate_font, set_window_icon
+from common.ui_elements import generate_color, generate_font, set_window_icon, create_w_lo, fix_tab_bg
 from component_card import ComponentCard, EditComponentCard
 from common.settings import TABLE_DICT, get_category, PASSPORT, update_config_param
 from database import DB
@@ -33,7 +33,7 @@ class MyComponentsUi(QWidget):
     def setupUi(self):
         self.main_window = self
         self.setObjectName("MainWindow")
-        # self.resize(1188, 505)
+        self.resize(1200, 800)
         # self.setDocumentMode(False)
         # self.setUnifiedTitleAndToolBarOnMac(False)
         self.centralwidget = self
@@ -44,7 +44,8 @@ class MyComponentsUi(QWidget):
         self.horizontalLayout.setSpacing(0)
         self.horizontalLayout.setObjectName("horizontalLayout")
         self.left_side = QtWidgets.QWidget(parent=self.centralwidget)
-        self.left_side.setMaximumSize(QtCore.QSize(300, 16777215))
+        self.left_side.setMaximumSize(QtCore.QSize(450, 16777215))
+        self.left_side.setMinimumWidth(400)
         self.left_side.setStyleSheet("background:rgb(238, 237, 235)")
         self.left_side.setObjectName("left_side")
         self.verticalLayout = QtWidgets.QVBoxLayout(self.left_side)
@@ -52,28 +53,12 @@ class MyComponentsUi(QWidget):
         self.verticalLayout.setSpacing(0)
 
 
-        self.widget_3 = QtWidgets.QWidget(parent=self.left_side)
-        # self.widget_3.setMaximumSize(QtCore.QSize(16777215, 100))
-        # self.widget_3.setObjectName("widget_3")
-        self.horizontalLayout_3 = QtWidgets.QHBoxLayout(self.widget_3)
-        self.horizontalLayout_3.setContentsMargins(15, 20, 0, 0)
-        # self.horizontalLayout_3.setSpacing(0)
-        # self.horizontalLayout_3.setObjectName("horizontalLayout_3")
-        category_label = QtWidgets.QLabel(parent=self.left_side)
+        w, lo = create_w_lo(self.left_side, self.verticalLayout)
+        category_label = QtWidgets.QLabel(parent=w)
         category_label.setText("Категории")
-        category_label.setFont(generate_font(18))
-        self.verticalLayout.addWidget(category_label)
-        self.widget_3.setMinimumSize(QtCore.QSize(300, 60))
-        # self.label_2.setTextFormat(QtCore.Qt.TextFormat.PlainText)
-        # self.label_2.setPixmap(QtGui.QPixmap("images/Логотип.png"))
-        # self.label_2.setScaledContents(True)
-        # self.label_2.setAlignment(
-        #     QtCore.Qt.AlignmentFlag.AlignLeading | QtCore.Qt.AlignmentFlag.AlignLeft | QtCore.Qt.AlignmentFlag.AlignVCenter)
-        # self.label_2.setWordWrap(False)
-        # self.label_2.setOpenExternalLinks(False)
-        # self.label_2.setObjectName("label_2")
-        self.horizontalLayout_3.addWidget(category_label)
-        self.verticalLayout.addWidget(self.widget_3)
+        category_label.setFont(generate_font(19, bold=True))
+        lo.setContentsMargins(15,40,15,5)
+        lo.addWidget(category_label)
 
         self.category_btn_dict = {}
         for category_label, category in TABLE_DICT.items():
@@ -133,11 +118,12 @@ class MyComponentsUi(QWidget):
         # self.search_comboBox.setItemText(1, "Тип")
 
         self.search_lineEdit = CastomInput(self.toolbar)
+        self.search_lineEdit.setMinimumWidth(250)
         self.search_lineEdit.textChanged.connect(lambda event: self.search_result(event))
         self.horizontalLayout_2.addWidget(self.search_lineEdit)
 
         self.label = QtWidgets.QLabel(parent=self.toolbar)
-        self.label.setMaximumSize(QtCore.QSize(32, 32))
+        self.label.setMaximumSize(QtCore.QSize(48, 48))
         self.label.setTextFormat(QtCore.Qt.TextFormat.PlainText)
         self.label.setPixmap(QtGui.QPixmap(os.path.join(BASE_DIR, "images/search.png")))
         self.label.setScaledContents(True)
@@ -335,7 +321,8 @@ class DarkBtn_Ui(QtWidgets.QPushButton):
         icon.addPixmap(QtGui.QPixmap(os.path.join(BASE_DIR, dict_btn_img[name][0])), QtGui.QIcon.Mode.Normal, QtGui.QIcon.State.Off)
         self.setIcon(icon)
         self.setText(dict_btn_img[name][1])
-        self.setIconSize(QtCore.QSize(16, 16))
+        self.setFont(generate_font(9))
+        self.setIconSize(QtCore.QSize(24, 24))
         self.setObjectName(name)
         self.setStyleSheet("""
         
@@ -511,7 +498,7 @@ class CategoryButton(QtWidgets.QPushButton):
         icon = QtGui.QIcon()
         icon.addPixmap(QtGui.QPixmap(os.path.join(BASE_DIR, "images/selected.png")), QtGui.QIcon.Mode.Normal, QtGui.QIcon.State.Off)
         self.setIcon(icon)
-        self.setIconSize(QSize(26, 26))
+        self.setIconSize(QSize(40, 40))
         self.setObjectName("selected")
         self.setStyleSheet(
             """
@@ -550,11 +537,19 @@ class SwitchGlobalButton(QtWidgets.QPushButton):
     def __init__(self, parent):
         super(SwitchGlobalButton, self).__init__(parent=parent)
         self.setEnabled(True)
-        font = QtGui.QFont()
-        font.setFamily("Segoe UI")
-        font.setPointSize(18)
-        self.setFont(font)
+        # font = QtGui.QFont()
+        # font.setFamily("Segoe UI")
+        # font.setPointSize(18)
+
+        self.setFont(generate_font(16))
         self.setCursor(QtGui.QCursor(QtCore.Qt.CursorShape.PointingHandCursor))
+        # label_icon = QtWidgets.QLabel()
+        # label_icon.setAttribute(QtCore.Qt.WA_TranslucentBackground)
+        # label_icon.setAttribute(QtCore.Qt.WA_TransparentForMouseEvents)
+        # lay = QtWidgets.QHBoxLayout(self)
+        # lay.setContentsMargins(0, 0, 0, 0)
+        # lay.addWidget(label_icon, alignment=QtCore.Qt.AlignRight)
+        # label_icon.setPixmap(QtGui.QIcon("images/arrow-left.png").pixmap(QSize(16,16)))
         # self.setFocusPolicy(QtCore.Qt.FocusPolicy.ClickFocus)
         # self.setLayoutDirection(QtCore.Qt.LayoutDirection.LeftToRight)
         # self.setAutoFillBackground(False)
@@ -576,7 +571,7 @@ class SwitchGlobalButton(QtWidgets.QPushButton):
             background-repeat: no-repeat;
             text-align: right; 
             border: 0px;
-            padding: 15px 35px 15px 30px;
+            padding: 15px 85px 15px 20px;
              color: rgb(27, 37, 36);
         }}
      QPushButton:hover{{
@@ -598,7 +593,7 @@ class SwitchGlobalButton(QtWidgets.QPushButton):
             background-repeat: no-repeat;
             text-align: left; 
             border: 0px;
-            padding: 15px 70px 15px 15px;
+            padding: 15px 100px 15px 15px;
              color: rgb(27, 37, 36);
         }}
      QPushButton:hover{{
@@ -792,6 +787,7 @@ class SettingsWindow(QWidget):
         self.verticalLayout.addItem(spacerItem)
         self.scrollArea.setWidget(self.scrollAreaWidgetContents)
         self.verticalLayout_3.addWidget(self.scrollArea)
+        fix_tab_bg(self.tab)
         self.tabWidget.addTab(self.tab, "")
         self.verticalLayout_2.addWidget(self.tabWidget)
 
@@ -906,11 +902,12 @@ class SettingsWindow(QWidget):
     def select_db(self):
         dialog = QFileDialog(self)
         dialog.setNameFilter("Хранилище компонентов (*.db)")
-        dialog.setFileMode(QFileDialog.fileMode(dialog).AnyFile)
-        dialog.setViewMode(QFileDialog.viewMode(dialog).Detail)
+        dialog.setFileMode(QFileDialog.AnyFile)
+        dialog.setViewMode(QFileDialog.Detail)
 
         if dialog.exec():
             fileNames = dialog.selectedFiles()[0]
+            print(fileNames)
             update_config_param("database_path", fileNames)
             self.destroy()
 

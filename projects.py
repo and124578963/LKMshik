@@ -5,16 +5,16 @@ import traceback
 from decimal import Decimal
 from typing import List
 
-from PyQt6 import QtCore, QtGui, QtWidgets
-from PyQt6.QtCore import QStringListModel, Qt, QSize, QEvent
-from PyQt6.QtWidgets import QAbstractItemView, QInputDialog, QLineEdit
+from PyQt5 import QtCore, QtGui, QtWidgets
+from PyQt5.QtCore import QStringListModel, Qt, QSize, QEvent
+from PyQt5.QtWidgets import QAbstractItemView, QInputDialog, QLineEdit
 from sqlitedict import SqliteDict
 
 from common.secrets import Secrets
 from common.settings import get_config_param, update_config_param, get_app_version
 from common.ui_elements import HoverableButton, CustomListItem, generate_font, ColorButton, generate_color, ChoiceColor, \
     get_v_spacer, MplCanvas, create_w_lo, CustomCombobox, get_h_spacer, delete_chield, normalize_number, \
-    DragHoverableButton, set_window_icon, CustomMenu
+    DragHoverableButton, set_window_icon, CustomMenu, CustomTextEdit, fix_tab_bg
 from component_card import CustomEntry
 from newReactives import DarkBtn_Ui, InfoWindow, MyComponentsUi
 from recepture import ReceptureWindow, ReceptureDataModel
@@ -46,7 +46,7 @@ class Projects_Ui(object):
         self.horizontalLayout.setObjectName("horizontalLayout")
 
         self.left_side = QtWidgets.QWidget(parent=self.centralwidget)
-        self.left_side.setMaximumSize(QtCore.QSize(300, 16777215))
+        self.left_side.setMaximumSize(QtCore.QSize(400, 16777215))
         self.left_side.setObjectName("left_side")
         self.verticalLayout = QtWidgets.QVBoxLayout(self.left_side)
         self.verticalLayout.setContentsMargins(0, 0, 0, 0)
@@ -54,7 +54,7 @@ class Projects_Ui(object):
         self.verticalLayout.setObjectName("verticalLayout")
         self.logo = QtWidgets.QLabel(parent=self.left_side)
         self.logo.setMinimumSize(QtCore.QSize(0, 0))
-        self.logo.setMaximumSize(QtCore.QSize(300, 100))
+        self.logo.setMaximumSize(QtCore.QSize(400, 140))
         self.logo.setPixmap(QtGui.QPixmap(os.path.join(BASE_DIR, "images/Логотип.png")))
         self.logo.setScaledContents(True)
         self.logo.setObjectName("logo")
@@ -66,7 +66,7 @@ class Projects_Ui(object):
         self.verticalLayout.addWidget(self.add_project_btn)
 
         self.listView = CustomListItem(self.left_side)
-        self.listView.setMaximumSize(QtCore.QSize(300, 16777215))
+        self.listView.setMaximumSize(QtCore.QSize(400, 16777215))
         self.listView.setObjectName("listView")
         self.listView.clicked.connect(lambda x: self.select_project(self.list_projects[x.row()]))
         self.load_list_projects()
@@ -117,7 +117,7 @@ class Projects_Ui(object):
         self.horizontalLayout_2.addWidget(self.components)
 
         self.menu_b = DarkBtn_Ui(self.toolbar, "menu")
-        self.menu_b.setMaximumWidth(30)
+        self.menu_b.setMaximumWidth(40)
         menu = CustomMenu(self.parent)
 
         menu.addAction('Поиск компонента', lambda:self.open_search())
@@ -236,7 +236,6 @@ class Projects_Ui(object):
                                             QtWidgets.QSizePolicy.Policy.Expanding)
         self.main_grid.addItem(spacerItem3)
 
-
     def del_project(self):
         name = self.selected_project
         if name != 'Тарировочные_кривые':
@@ -325,7 +324,7 @@ class ProjectToolButton(QtWidgets.QPushButton):
         self.icon_on = QtGui.QIcon()
         self.icon_on.addPixmap(QtGui.QPixmap(os.path.join(BASE_DIR, dict_type[_type][1])), QtGui.QIcon.Mode.Normal, QtGui.QIcon.State.Off)
         self.setIcon(self.icon)
-        self.setIconSize(QtCore.QSize(20, 20))
+        self.setIconSize(QtCore.QSize(28, 28))
 
         self.setStyleSheet(
             """
@@ -555,7 +554,7 @@ class Iteration(QtWidgets.QWidget):
             # test: QtWidgets.QVBoxLayout = event.source()
             # print(test.parentWidget())
             self.setAcceptDrops(True)
-            self.target = self.get_index(event.position().toPoint())
+            self.target = self.get_index(event.pos())
             Iteration.set_drop_false(obj=self)
         else:
             self.target = None
@@ -589,8 +588,8 @@ class Iteration(QtWidgets.QWidget):
     def dropEvent(self, event: QtGui.QMouseEvent):
         # test:QtWidgets.QVBoxLayout = event.source()
         # print(test.parentWidget())
-        if not event.source().geometry().contains(event.position().toPoint()):
-            source = self.get_index(event.position().toPoint())
+        if not event.source().geometry().contains(event.pos()):
+            source = self.get_index(event.pos())
             if source is None:
                 return
             list_obj = self.get_list_obj()
@@ -696,12 +695,14 @@ class Recepture(QtWidgets.QFrame):
         alfa = color[1:3]
 
         if alfa.upper() != "00":
-            color = "#FF" + color[3:]
+            # color = "#FF" + color[3:]
             self.color_img = QtWidgets.QLabel(parent=self.nameArea)
-            image = QtGui.QPixmap(generate_color(self.data_model.recepture_color))
+            image = QtGui.QPixmap(generate_color(self.data_model.recepture_color)).scaled(24, 24, aspectRatioMode=Qt.AspectRatioMode.KeepAspectRatio,
+                                                 transformMode=Qt.TransformationMode.SmoothTransformation)
             self.color_img.setPixmap(image)
             self.horizontalLayout_5.addWidget(self.color_img)
-            self.color_img.setMaximumSize(16,16)
+            self.color_img.setMaximumSize(24,24)
+
         self.label_name = QtWidgets.QLabel(parent=self.nameArea)
         self.label_name.setText(name)
         self.label_name.setFont(generate_font(12))
@@ -913,8 +914,8 @@ class AddProjectWindow(QtWidgets.QWidget):
         self.row = 0
         self.project_color = "#00FFFFFF"
         self.choice_color_window = None
-        self.setMinimumSize(500, 400)
-        self.setMaximumSize(600, 999999)
+        self.setMinimumSize(800, 400)
+        self.setMaximumSize(800, 999999)
         self.list_entry_name_obj = []
         self.list_entry_value_obj = []
         self.verticalLayout = QtWidgets.QVBoxLayout(self)
@@ -949,7 +950,7 @@ class AddProjectWindow(QtWidgets.QWidget):
         h_loyout.addWidget(tech_lable)
         val_lable = QtWidgets.QLabel(parent=self.labels_w)
         val_lable.setAlignment(QtCore.Qt.AlignmentFlag.AlignRight)
-        val_lable.setText("Требуемые значения:   \t\t\t\t\t\t\t\t")
+        val_lable.setText("Требуемые значения:   \t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t")
         h_loyout.addWidget(val_lable)
         self.verticalLayout_3.addWidget(self.labels_w)
 
@@ -967,7 +968,7 @@ class AddProjectWindow(QtWidgets.QWidget):
                    }          
                           """)
         self.params_widget = QtWidgets.QWidget()
-        self.params_widget.setGeometry(QtCore.QRect(0, 0, 796, 800))
+        self.params_widget.setGeometry(QtCore.QRect(0, 0, 800, 1000))
         self.params_widget.setObjectName("scrollAreaWidgetContents")
 
         self.scrollArea.setWidget(self.params_widget)
@@ -1006,7 +1007,7 @@ class AddProjectWindow(QtWidgets.QWidget):
         self.color_img = QtWidgets.QLabel(parent=self.color_tab)
         image = QtGui.QPixmap(generate_color(self.project_color))
         self.color_img.setPixmap(image)
-        self.color_img.setMaximumSize(QSize(82, 80))
+        self.color_img.setMaximumSize(QSize(99, 99))
         self.color_img.setStyleSheet("""
                 QLabel{
                 border: 1px solid #ddd;
@@ -1028,7 +1029,7 @@ class AddProjectWindow(QtWidgets.QWidget):
         self.descript_tab.setObjectName("descript_tab")
         self.verticalLayout_4 = QtWidgets.QVBoxLayout(self.descript_tab)
         self.verticalLayout_4.setObjectName("verticalLayout_4")
-        self.textEdit = QtWidgets.QTextEdit(parent=self.descript_tab)
+        self.textEdit = CustomTextEdit(self.descript_tab, type="white")
         self.textEdit.setObjectName("textEdit")
         self.textEdit.setContentsMargins(0, 0, 0, 0)
         self.verticalLayout_4.addWidget(self.textEdit)
@@ -1037,8 +1038,11 @@ class AddProjectWindow(QtWidgets.QWidget):
         self.save_btn.clicked.connect(lambda x: self.save_data())
         self.verticalLayout_4.addWidget(self.save_btn)
         self.add_default_rows()
+        fix_tab_bg(self.general_tab)
         self.tabWidget.addTab(self.general_tab, "Основные")
+        fix_tab_bg(self.color_tab)
         self.tabWidget.addTab(self.color_tab, "Цвет")
+        fix_tab_bg(self.descript_tab)
         self.tabWidget.addTab(self.descript_tab, "Описание")
         self.verticalLayout.addWidget(self.tabWidget)
 
@@ -1256,7 +1260,7 @@ class DrawGraf(QtWidgets.QWidget):
         set_window_icon(self)
         self.setWindowTitle("Построить графики")
         self.setObjectName("window_w")
-        self.resize(600, 400)
+        self.resize(600, 600)
         self.verticalLayout = QtWidgets.QVBoxLayout(self)
         self.verticalLayout.setSpacing(0)
 
@@ -1270,7 +1274,7 @@ class DrawGraf(QtWidgets.QWidget):
         label_x.setText("Ось X:")
         lo.addWidget(label_x)
         self.combobox_x = CustomCombobox(w)
-        self.combobox_x.setMaximumSize(200, 20)
+
         lo.addWidget(self.combobox_x)
         plot_btn = ColorButton(w, color="blue")
         plot_btn.setText("Построить график")
@@ -1283,7 +1287,6 @@ class DrawGraf(QtWidgets.QWidget):
         label_y.setText("Ось Y:")
         lo.addWidget(label_y)
         self.combobox_y = CustomCombobox(w)
-        self.combobox_y.setMaximumSize(200, 20)
         lo.addWidget(self.combobox_y)
         clear_plot_btn = ColorButton(w, color="blue")
         clear_plot_btn.setText("Очистить график")
@@ -1434,8 +1437,6 @@ class WindowSettings(QtWidgets.QWidget):
         lo.addWidget(name_l)
         lo.addItem(get_h_spacer())
         self.name_e = CustomEntry(w, padding=False)
-        self.name_e.setMaximumSize(300, 20)
-        self.name_e.setMinimumSize(300, 20)
         self.name_e.setText(self.name)
         lo.addWidget(self.name_e)
 
@@ -1447,8 +1448,6 @@ class WindowSettings(QtWidgets.QWidget):
         lo.addWidget(mail_l)
         lo.addItem(get_h_spacer())
         self.mail_e = CustomEntry(w, padding=False)
-        self.mail_e.setMaximumSize(300, 20)
-        self.mail_e.setMinimumSize(300, 20)
         self.mail_e.setText(self.email)
         lo.addWidget(self.mail_e)
 
@@ -1460,8 +1459,6 @@ class WindowSettings(QtWidgets.QWidget):
         lo.addWidget(company_l)
         lo.addItem(get_h_spacer())
         self.company_e = CustomEntry(w, padding=False)
-        self.company_e.setMaximumSize(300, 20)
-        self.company_e.setMinimumSize(300, 20)
         self.company_e.setText(self.company)
         lo.addWidget(self.company_e)
         self.verticalLayout.addItem(get_v_spacer())
@@ -1545,7 +1542,7 @@ class SearchReceptureByComponent(QtWidgets.QWidget):
         self.resize(300, 100)
 
         self.verticalLayout = QtWidgets.QVBoxLayout(self)
-        self.verticalLayout.setSpacing(0)
+        self.verticalLayout.setSpacing(10)
 
         w, lo = create_w_lo(self, self.verticalLayout)
         name_l = QtWidgets.QLabel(parent=w)
@@ -1558,8 +1555,6 @@ class SearchReceptureByComponent(QtWidgets.QWidget):
         name_l.setText("Компонент:")
         lo.addWidget(name_l)
         self.name_e = CustomEntry(w, padding=False)
-        self.name_e.setMaximumSize(300, 20)
-        self.name_e.setMinimumSize(300, 20)
         lo.addWidget(self.name_e)
         lo.addItem(get_h_spacer())
 

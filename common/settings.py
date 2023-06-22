@@ -17,7 +17,7 @@ def get_app_version():
 
 def get_database_path():
     global DATABASE_PATH
-    with SqliteDict('../configuration') as mydict:
+    with SqliteDict('./configuration') as mydict:
         key = "database_path"
         database_path = mydict.get(key, "reactives.db")
         # if database_path is None:

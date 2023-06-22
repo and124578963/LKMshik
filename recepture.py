@@ -11,15 +11,16 @@ import docx
 from win32com import client
 
 import numpy as np
-from PyQt6 import QtCore, QtGui, QtWidgets
-from PyQt6.QtCore import Qt, QSize
-from PyQt6.QtWidgets import QCompleter, QFileDialog
+from PyQt5 import QtCore, QtGui, QtWidgets
+from PyQt5.QtCore import Qt, QSize
+from PyQt5.QtWidgets import QCompleter, QFileDialog
 from sqlitedict import SqliteDict
 
 from common.secrets import Secrets
 from common.ui_elements import HoverableButton, MenuButton, ColorButton, CustomMenu, CustomRadioBtn, generate_color, \
     CustomListItem, generate_font, MplCanvas, delete_chield, create_w_lo, normalize_number, get_numeric_validator, \
-    insert_w_lo, get_h_spacer, get_v_spacer, change_position_window, ChoiceColor, set_window_icon
+    insert_w_lo, get_h_spacer, get_v_spacer, change_position_window, ChoiceColor, set_window_icon, CustomTextEdit, \
+    fix_tab_bg
 from component_card import CustomEntry, CustomCombobox
 from database import DB
 from typing import List, Tuple
@@ -78,15 +79,15 @@ class ReceptureWindow(QtWidgets.QWidget):
         self.horizontalLayout_6.setObjectName("horizontalLayout_6")
 
         self.left_side = QtWidgets.QWidget(parent=self.widget)
-        self.left_side.setMaximumSize(QtCore.QSize(390, 16777215))
+        self.left_side.setMaximumSize(QtCore.QSize(500, 16777215))
         self.horizontalLayout_6.addWidget(self.left_side)
         self.left_vertical_lo = QtWidgets.QVBoxLayout(self.left_side)
         self.left_vertical_lo.setContentsMargins(0,0,0,0)
         self.left_vertical_lo.setSpacing(0)
 
         self.scrollArea = QtWidgets.QScrollArea(parent=self.widget)
-        self.scrollArea.setMinimumSize(QtCore.QSize(390, 0))
-        self.scrollArea.setMaximumSize(QtCore.QSize(390, 16777215))
+        self.scrollArea.setMinimumSize(QtCore.QSize(500, 0))
+        self.scrollArea.setMaximumSize(QtCore.QSize(500, 16777215))
         self.scrollArea.setWidgetResizable(True)
         self.scrollArea.setObjectName("scrollArea")
         self.widget.setStyleSheet("""
@@ -100,7 +101,7 @@ class ReceptureWindow(QtWidgets.QWidget):
                            }          
                                   """)
         self.recepture = QtWidgets.QWidget()
-        self.recepture.setGeometry(QtCore.QRect(0, 0, 403, 485))
+        self.recepture.setGeometry(QtCore.QRect(0, 0, 500, 600))
         self.recepture.setObjectName("recepture")
         self.verticalLayout = QtWidgets.QVBoxLayout(self.recepture)
         self.verticalLayout.setContentsMargins(0,0,0,0)
@@ -138,9 +139,10 @@ class ReceptureWindow(QtWidgets.QWidget):
 
         self.plus_2 = MenuButton(self.recepture, "plus_2", (20, 20))
         self.plus_2.clicked.connect(lambda x: self.add_row("two"))
-        self.plus_2.hide()
+
         self.verticalLayout.addWidget(self.component_two)
         self.verticalLayout.addWidget(self.plus_2, alignment=QtCore.Qt.AlignmentFlag.AlignCenter)
+
         spacerItem1 = QtWidgets.QSpacerItem(20, 40, QtWidgets.QSizePolicy.Policy.Minimum,
                                             QtWidgets.QSizePolicy.Policy.Expanding)
         self.verticalLayout.addItem(spacerItem1)
@@ -152,15 +154,16 @@ class ReceptureWindow(QtWidgets.QWidget):
 
         if not self.recepture_data.flag_2k:
             self.component_two.hide()
+            self.plus_2.hide()
 
         self.scrollArea.setWidget(self.recepture)
         self.left_vertical_lo.addWidget(self.scrollArea)
 
         self.right_side = QtWidgets.QWidget(parent=self.widget)
         self.verticalLayout_6 = QtWidgets.QVBoxLayout(self.right_side)
-        self.verticalLayout_6.setSpacing(3)
+        self.verticalLayout_6.setSpacing(5)
         self.verticalLayout_6.setContentsMargins(0,0,0,0)
-        self.right_side.setMaximumSize(350, 999999)
+        self.right_side.setMaximumSize(500, 999999)
 
         w, lo = create_w_lo(self.right_side, self.verticalLayout_6)
         self.count_params_l = QtWidgets.QLabel(parent=w)
@@ -302,6 +305,7 @@ class ReceptureWindow(QtWidgets.QWidget):
 
         self.horizontalLayout_8.addWidget(self.recount_btn)
         self.left_vertical_lo.addWidget(self.all_amount_w)
+        fix_tab_bg(self.recepture_tab)
         self.tabWidget.addTab(self.recepture_tab, "Рецептура")
 
 
@@ -323,8 +327,8 @@ class ReceptureWindow(QtWidgets.QWidget):
         self.gridLayout_2.addWidget(l, 0, 0, 1, 2)
 
         self.scrollArea_2 = QtWidgets.QScrollArea(parent=self.exp_params_w)
-        self.scrollArea_2.setMinimumSize(QtCore.QSize(475, 350))
-        self.scrollArea_2.setMaximumSize(QtCore.QSize(700, 16777215))
+        self.scrollArea_2.setMinimumWidth(800)
+        self.scrollArea_2.setMaximumWidth(900)
         self.scrollArea_2.setWidgetResizable(True)
         self.scrollArea_2.setObjectName("scrollArea")
         self.exp_params_w.setStyleSheet("""
@@ -338,7 +342,7 @@ class ReceptureWindow(QtWidgets.QWidget):
                                    }          
                                           """)
         self.exp_s_area = QtWidgets.QWidget()
-        self.exp_s_area.setGeometry(QtCore.QRect(0, 0, 500, 700))
+        self.exp_s_area.setGeometry(QtCore.QRect(0, 0, 800, 800))
         self.exp_s_area.setObjectName("recepture")
         self.gridLayout_3 = QtWidgets.QGridLayout(self.exp_s_area)
         self.gridLayout_3.setVerticalSpacing(3)
@@ -375,16 +379,15 @@ class ReceptureWindow(QtWidgets.QWidget):
         self.scrollArea_2.setWidget(self.exp_s_area)
         self.gridLayout_2.addWidget(self.scrollArea_2, 2, 0, 1, 4)
 
-        spacerItem3 = QtWidgets.QSpacerItem(20, 40, QtWidgets.QSizePolicy.Policy.Minimum,
-                                            QtWidgets.QSizePolicy.Policy.Expanding)
-        self.gridLayout_2.addItem(spacerItem3, 100, 0, 1, 1)
+        # spacerItem3 = QtWidgets.QSpacerItem(20, 40, QtWidgets.QSizePolicy.Policy.Minimum,
+        #                                     QtWidgets.QSizePolicy.Policy.Expanding)
+        # self.gridLayout_2.addItem(spacerItem3, 100, 0, 1, 1)
         self.horizontalLayout_2.addWidget(self.exp_params_w)
 
         self.color_w = QtWidgets.QWidget(parent=self.exp_body_w)
         self.gridLayout_4 = QtWidgets.QGridLayout(self.color_w)
 
         self.lable_name = QtWidgets.QLabel(parent=self.color_w)
-
         self.lable_name.setFont(generate_font(12))
         self.lable_name.setText("Цвет")
         self.gridLayout_4.addWidget(self.lable_name, 0, 0, 1, 1)
@@ -396,7 +399,7 @@ class ReceptureWindow(QtWidgets.QWidget):
         self.color1 = QtWidgets.QLabel(parent=self.color_w)
         image = QtGui.QPixmap(generate_color(self.recepture_data.project_color))
         self.color1.setPixmap(image)
-        self.color1.setMaximumSize(QSize(82, 80))
+        self.color1.setMaximumSize(QSize(99, 99))
         self.color1.setStyleSheet("""
         QLabel{
         border: 1px solid #ddd;
@@ -409,7 +412,7 @@ class ReceptureWindow(QtWidgets.QWidget):
         self.gridLayout_4.addWidget(self.lable_color2, 1, 1, 1, 1, alignment=QtCore.Qt.AlignmentFlag.AlignCenter)
 
         self.color2 = QtWidgets.QLabel(parent=self.color_w)
-        self.color2.setMaximumSize(QSize(82, 80))
+        self.color2.setMaximumSize(QSize(99, 99))
         self.color2.setStyleSheet("""
         QLabel{
         border: 1px solid #ddd;
@@ -437,15 +440,17 @@ class ReceptureWindow(QtWidgets.QWidget):
                                             QtWidgets.QSizePolicy.Policy.Minimum)
         self.horizontalLayout_2.addItem(spacerItem5)
         self.verticalLayout_4.addWidget(self.exp_body_w)
+        fix_tab_bg(self.experimental_tab)
         self.tabWidget.addTab(self.experimental_tab, "Эксперимент")
 
         self.description_tab = QtWidgets.QWidget()
         self.verticalLayout_5 = QtWidgets.QVBoxLayout(self.description_tab)
-        self.verticalLayout_5.setContentsMargins(9, 0, 9, 9)
-        self.description = QtWidgets.QTextEdit(parent=self.description_tab)
+        self.verticalLayout_5.setContentsMargins(9, 9, 9, 9)
+        self.description = CustomTextEdit(self.description_tab, type="white")
         self.description.setText(self.recepture_data.notes)
         self.description.textChanged.connect(lambda: self.set_unsaved())
         self.verticalLayout_5.addWidget(self.description)
+        fix_tab_bg(self.description_tab)
         self.tabWidget.addTab(self.description_tab, "Заметки")
         self.verticalLayout_3.addWidget(self.tabWidget)
 
@@ -455,6 +460,7 @@ class ReceptureWindow(QtWidgets.QWidget):
 
         self.saved_f = True
         self.setWindowTitle(f"{self.project} - {self.iter} - {self.name}")
+        change_position_window(self, -200, -100)
 
     def closeEvent(self, event):
         Ui_Component.list_obj.remove(self.component_one)
@@ -474,7 +480,7 @@ class ReceptureWindow(QtWidgets.QWidget):
         toolbar.setContentsMargins(9,0,9,0)
 
         horizontalLayout_3 = QtWidgets.QHBoxLayout(toolbar)
-        horizontalLayout_3.setSpacing(4)
+        horizontalLayout_3.setSpacing(6)
         self.name_recepture = QtWidgets.QLabel(parent=toolbar)
         self.name_recepture.setContentsMargins(5,0,25,0)
         self.name_recepture.setText(self.name)
@@ -654,7 +660,7 @@ class ReceptureWindow(QtWidgets.QWidget):
     def recount_mass(self):
         dialog = QtWidgets.QInputDialog()
         new_summ, ok = dialog.getDouble(self, "Пересчитать массу на новую",
-                                          "Новая масса:", 100.00, min=1.0, decimals=2, step=5)
+                                         "Новая масса:", value=100.00, min=1.0, decimals=2, max=100000.0)
         if ok and new_summ:
             summ = Decimal(0)
             new_summ = Decimal(new_summ)
@@ -683,7 +689,7 @@ class ReceptureWindow(QtWidgets.QWidget):
     def add_solvent(self):
         dialog = QtWidgets.QInputDialog()
         goal_mass, ok = dialog.getDouble(self, "Довести растворителем до массы",
-                                        "Новая масса:", 100.00, min=1.0, decimals=2, step=5)
+                                        "Новая масса:", value=100.00, min=1.0, decimals=2, max=100000.0)
         if ok and goal_mass:
             goal_mass = Decimal(goal_mass)
             mass_suhoi = Decimal(0)
@@ -864,11 +870,10 @@ class ComponentRow(QtWidgets.QFrame):
         self.setCursor(QtGui.QCursor(QtCore.Qt.CursorShape.SizeAllCursor))
         self.horizontalLayout_4 = QtWidgets.QHBoxLayout(self)
         self.horizontalLayout_4.setContentsMargins(0, 0, 0, 0)
-        self.horizontalLayout_4.setSpacing(3)
+        self.horizontalLayout_4.setSpacing(5)
 
         self.category_icon = QtWidgets.QLabel(parent=self)
-        self.category_icon.setMaximumSize(QtCore.QSize(16, 16))
-        self.category_icon.setMinimumSize(QtCore.QSize(16, 16))
+        self.category_icon.setFixedSize(24,24)
         self.category_icon.setTextFormat(QtCore.Qt.TextFormat.PlainText)
         self.category_icon.setAlignment(QtCore.Qt.AlignmentFlag.AlignCenter)
         self.category_icon.setScaledContents(True)
@@ -876,45 +881,44 @@ class ComponentRow(QtWidgets.QFrame):
         self.assign_category(name)
 
         self.number_l = QtWidgets.QLabel(parent=self)
-        self.number_l.setMaximumSize(QtCore.QSize(16, 16))
+        self.number_l.setFixedSize(24,24)
         self.number_l.setAlignment(QtCore.Qt.AlignmentFlag.AlignCenter)
-        self.number_l.setMinimumSize(QtCore.QSize(16, 16))
         self.horizontalLayout_4.addWidget(self.number_l)
 
         list_all_names = self.db.search("%%")
         self.name_comp = SearchCombobox(self, list_all_names)
         self.name_comp.setText(name)
-        self.name_comp.setMinimumSize(QtCore.QSize(250, 0))
+        self.name_comp.setMinimumWidth(300)
         self.name_comp.textChanged.connect(self.name_changed)
 
 
         self.horizontalLayout_4.addWidget(self.name_comp)
         self.amount = CustomEntry(self, padding=False)
         self.amount.setText(amount)
-        self.amount.setMaximumSize(QtCore.QSize(50, 16777215))
-        self.amount.setMinimumSize(QtCore.QSize(50, 16777215))
+        self.amount.setFixedWidth(70)
+
         self.amount.textChanged.connect(lambda event: callback_mass())
         self.amount.setValidator(get_numeric_validator())
         self.horizontalLayout_4.addWidget(self.amount)
 
-        self.comment_spacer = QtWidgets.QSpacerItem(40, 10, QtWidgets.QSizePolicy.Policy.Fixed,
-                                            QtWidgets.QSizePolicy.Policy.Minimum)
-        self.comment_spacer.changeSize(0, 0)
-        self.horizontalLayout_4.addItem(self.comment_spacer)
-        self.comment = QtWidgets.QPlainTextEdit(parent=self)
+        self.comment = CustomTextEdit(self, type="comment")
         sizePolicy = QtWidgets.QSizePolicy(QtWidgets.QSizePolicy.Policy.Minimum, QtWidgets.QSizePolicy.Policy.Minimum)
         sizePolicy.setHorizontalStretch(0)
         sizePolicy.setVerticalStretch(0)
         sizePolicy.setHeightForWidth(self.comment.sizePolicy().hasHeightForWidth())
-        self.comment.setSizePolicy(sizePolicy)
+        # self.comment.setSizePolicy(sizePolicy)
+        # self.comment.setMaximumWidth(500)
         # self.comment.setContentsMargins(32,0,0,0)
-        self.comment.setMinimumSize(QtCore.QSize(303, 40))
+        self.comment.setMinimumWidth(303)
+        self.comment.setFixedHeight(50)
+
         self.horizontalLayout_4.addWidget(self.comment)
         self.comment.textChanged.connect(lambda: self.unsave_callback())
         self.comment.hide()
 
         self.swap = MenuButton(self, "swap", (20, 20))
-        self.swap.setMaximumSize(QtCore.QSize(20, 20))
+
+        self.swap.setFixedSize(20, 26)
 
         menu = CustomMenu(self)
         menu.addAction('Сделать комментарием', self.change_state)
@@ -938,7 +942,7 @@ class ComponentRow(QtWidgets.QFrame):
             self.assign_category(self.name_comp.text())
 
             self.comment.hide()
-            self.comment_spacer.changeSize(0, 0)
+
             menu = QtWidgets.QMenu(self)
             menu.addAction('Сделать комментарием', self.change_state)
             menu.addAction('Удалить', self.delete)
@@ -949,13 +953,12 @@ class ComponentRow(QtWidgets.QFrame):
         else:
             self.flag_comment = True
             self.category = ""
-            self.category_icon.hide()
-            self.number_l.hide()
             self.name_comp.hide()
             self.amount.hide()
-
+            self.category_icon.setPixmap(QtGui.QPixmap())
+            self.number_l.setText("")
             self.comment.show()
-            self.comment_spacer.changeSize(38, 10)
+
             menu = QtWidgets.QMenu(self)
             menu.addAction('Сделать компонентом', self.change_state)
             menu.addAction('Удалить', self.delete)
@@ -1090,15 +1093,14 @@ class Ui_Component(QtWidgets.QWidget):
         self.unsave_callback = unsave_callback
         Ui_Component.list_obj.append(self)
         self.setAcceptDrops(False)
+
         self.list_comp_row_obj = []
         self.row = 0
-        self.setGeometry(QtCore.QRect(0, 0, 403, 485))
+        self.setGeometry(QtCore.QRect(0, 0, 500, 1))
         self.setObjectName("recepture")
-
         self.gridLayout = QtWidgets.QGridLayout(self)
-        self.gridLayout.setSpacing(2)
+        self.gridLayout.setSpacing(4)
         self.gridLayout.setContentsMargins(0,0,0,0)
-
 
     def add_row(self, name="", value="", callback_mass=None, comment=None):
         parent = self
@@ -1146,7 +1148,6 @@ class Ui_Component(QtWidgets.QWidget):
                     obj.set_number(number)
                     number += 1
 
-
     def get_index(self, pos):
         for i in range(self.gridLayout.count()):
             if self.gridLayout.itemAt(i).geometry().contains(pos) and i != self.target:
@@ -1155,7 +1156,7 @@ class Ui_Component(QtWidgets.QWidget):
     def mousePressEvent(self, event: QtGui.QMouseEvent):
         if event.button() == Qt.MouseButton.LeftButton:
             self.setAcceptDrops(True)
-            self.target = self.get_index(event.position().toPoint())
+            self.target = self.get_index(event.pos())
             Ui_Component.set_drop_false(obj=self)
         else:
             self.target = None
@@ -1183,10 +1184,8 @@ class Ui_Component(QtWidgets.QWidget):
             event.ignore()
 
     def dropEvent(self, event: QtGui.QMouseEvent):
-        test:QtWidgets.QVBoxLayout = event.source()
-        print(test.parentWidget())
-        if not event.source().geometry().contains(event.position().toPoint()):
-            source = self.get_index(event.position().toPoint())
+        if not event.source().geometry().contains(event.pos()):
+            source = self.get_index(event.pos())
             if source is None:
                 return
             list_obj = self.get_list_obj()
@@ -2080,6 +2079,9 @@ class ReceptureDataModel:
         g1 = float(int(self.project_color[5:7], 16))
         b1 = float(int(self.project_color[7:], 16))
 
+        if self.recepture_color is None:
+            return ""
+
         alfa2 = self.recepture_color[0:3]
         r2 = float(int(self.recepture_color[3:5], 16))
         g2 = float(int(self.recepture_color[5:7], 16))
@@ -2179,7 +2181,7 @@ class ReceptureSettings(QtWidgets.QWidget):
         self.horizontalLayout_2.addWidget(self.price_k_l)
         self.price_k_e = CustomEntry(self.price_k_w, padding=False)
         self.price_k_e.setToolTip(tooltip)
-        self.price_k_e.setMaximumSize(50, 999)
+        self.price_k_e.setFixedWidth(75)
         self.price_k_e.setValidator(get_numeric_validator())
         self.price_k_e.setText(self.k_price)
         self.horizontalLayout_2.addWidget(self.price_k_e)
@@ -2196,7 +2198,7 @@ class ReceptureSettings(QtWidgets.QWidget):
         self.density_l.setToolTip(tooltip)
         self.horizontalLayout_3.addWidget(self.density_l)
         self.density_e = CustomEntry(self.density_w, padding=False)
-        self.density_e.setMaximumSize(50, 999)
+        self.density_e.setFixedWidth(75)
         self.density_e.setToolTip(tooltip)
         self.density_e.setValidator(get_numeric_validator())
         self.density_e.setText(self.accurate_density)
@@ -2504,8 +2506,8 @@ class CountAdditiveWindow(QtWidgets.QWidget):
         metal_l.setText("Содержание металла, %")
         lo.addWidget(metal_l)
         self.metal_e = CustomEntry(self.metal_w, padding=False)
-        self.metal_e.setMaximumSize(50, 22)
         self.metal_e.setValidator(get_numeric_validator())
+        self.metal_e.setFixedWidth(75)
         lo.addWidget(self.metal_e)
         spacerItem1 = QtWidgets.QSpacerItem(20, 40, QtWidgets.QSizePolicy.Policy.Expanding,
                                             QtWidgets.QSizePolicy.Policy.Minimum)
@@ -2520,7 +2522,7 @@ class CountAdditiveWindow(QtWidgets.QWidget):
         dosage_l.setText("Дозировка, %")
         lo.addWidget(dosage_l)
         self.dosage_e = CustomEntry(dosage_w, padding=False)
-        self.dosage_e.setMaximumSize(50, 22)
+        self.dosage_e.setFixedWidth(75)
         self.dosage_e.setValidator(get_numeric_validator())
         lo.addWidget(self.dosage_e)
         count_new_b = ColorButton(parent=dosage_w, color="blue")
@@ -2542,7 +2544,7 @@ class CountAdditiveWindow(QtWidgets.QWidget):
         result_l.setText("Результат:")
         lo.addWidget(result_l)
         self.result_e = CustomEntry(self.count_w, padding=False)
-        self.result_e.setMaximumSize(50, 22)
+        self.result_e.setFixedWidth(75)
         self.result_e.setReadOnly(True)
         lo.addWidget(self.result_e)
         add_count_b = ColorButton(parent=result_w, color="blue")
@@ -2782,7 +2784,7 @@ class CountHardenerWindow(QtWidgets.QWidget):
         const_l.setToolTip(tooltip)
         lo.addWidget(const_l)
         self.const_e = CustomEntry(self.const_w, padding=False)
-        self.const_e.setMaximumSize(50, 22)
+        self.const_e.setFixedWidth(75)
         self.const_e.setValidator(get_numeric_validator())
         self.const_e.setToolTip(tooltip)
         lo.addWidget(self.const_e)
@@ -2799,7 +2801,7 @@ class CountHardenerWindow(QtWidgets.QWidget):
         equivalent_l.setText("Эквивалентная масса, г/экв:")
         lo.addWidget(equivalent_l)
         self.equivalent_e = CustomEntry(equivalent_w, padding=False)
-        self.equivalent_e.setMaximumSize(50, 22)
+        self.equivalent_e.setFixedWidth(75)
         self.equivalent_e.setValidator(get_numeric_validator())
         lo.addWidget(self.equivalent_e)
 
@@ -2819,7 +2821,7 @@ class CountHardenerWindow(QtWidgets.QWidget):
         result_l.setText("Результат:")
         lo.addWidget(result_l)
         self.result_e = CustomEntry(self.count_w, padding=False)
-        self.result_e.setMaximumSize(50, 22)
+        self.result_e.setFixedWidth(75)
         self.result_e.setReadOnly(True)
         lo.addWidget(self.result_e)
         add_count_b = ColorButton(parent=result_w, color="blue")
@@ -3017,7 +3019,7 @@ class RecountOnMaslo(QtWidgets.QWidget):
         result_l.setText("Результат:")
         lo.addWidget(result_l)
         self.result_e = CustomEntry(self.count_w, padding=False)
-        self.result_e.setMaximumSize(50, 22)
+        self.result_e.setFixedWidth(75)
         self.result_e.setReadOnly(True)
         lo.addWidget(self.result_e)
         count_new_b = ColorButton(parent=result_w, color="blue")
@@ -3131,8 +3133,7 @@ class CountReceptureConstant(QtWidgets.QWidget):
         """)
 
         self.list_curve_w = QtWidgets.QWidget(parent=self)
-        self.list_curve_w.setMaximumSize(QtCore.QSize(300, 16777215))
-        self.list_curve_w.setMinimumSize(QtCore.QSize(250, 16777215))
+        self.list_curve_w.setFixedWidth(400)
         self.list_curve_w.setObjectName("ListCurveW")
         self.list_curve_w.setStyleSheet("""
         QWidget#ListCurveW{
@@ -3152,6 +3153,7 @@ class CountReceptureConstant(QtWidgets.QWidget):
         self.list_curve_ui = CustomListItem(parent=self.list_curve_w)
         self.list_curve = os.listdir('saves/' + 'Тарировочные_кривые')
         self.list_curve.remove('params')
+        self.list_curve_ui.setFixedWidth(400)
         self.list_curve_ui.clicked.connect(lambda x: self.select_curve(self.list_curve[x.row()]))
         self.list_curve_ui.set_list_elements(self.list_curve)
         self.verticalLayout.addWidget(self.list_curve_ui)
@@ -3163,10 +3165,11 @@ class CountReceptureConstant(QtWidgets.QWidget):
         label.setText("Выберите степень пигментирования")
         label.setFont(generate_font(12, bold=True))
         self.verticalLayout_2.addWidget(label, alignment=QtCore.Qt.AlignmentFlag.AlignCenter)
-        self.plot = MplCanvas(self.plot_w)
+        w, lo = create_w_lo(self.plot_w, self.verticalLayout_2)
+        self.plot = MplCanvas(w)
         self.plot.mpl_connect('button_press_event', self.onclick)
-        self.verticalLayout_2.addWidget(self.plot)
-        self.verticalLayout_2.addItem(get_v_spacer())
+        lo.addWidget(self.plot)
+        lo.addItem(get_v_spacer())
         self.horizontalLayout.addWidget(self.plot_w)
 
         self.result_w = QtWidgets.QWidget(parent=self)
@@ -3176,7 +3179,8 @@ class CountReceptureConstant(QtWidgets.QWidget):
         border-left: 2px solid #eee;
         }
         """)
-        self.result_w.setMinimumSize(QtCore.QSize(200, 16777215))
+        self.result_w.setMinimumWidth(400)
+        self.result_w.setMaximumWidth(500)
         self.verticalLayout_3 = QtWidgets.QVBoxLayout(self.result_w)
         label = QtWidgets.QLabel(self.result_w)
         label.setText("Результат")
@@ -3211,9 +3215,9 @@ class CountReceptureConstant(QtWidgets.QWidget):
                     list_of_hiding_pigm.append(mydict[recepture][6][6])
 
                 dec_list_of_glass = list_of_glass
-                list_of_glass = list(map(lambda x: float(x.replace(',', '.')), dec_list_of_glass))
+                list_of_glass = list(map(lambda x: float(str(x).replace(',', '.')), dec_list_of_glass))
                 dec_list_of_degree = list_of_degree
-                list_of_degree = list(map(lambda x: float(x.replace(',', '.')), dec_list_of_degree))
+                list_of_degree = list(map(lambda x: float(str(x).replace(',', '.')), dec_list_of_degree))
                 dec_list_of_maslo = list_of_maslo
 
                 # print(list_of_glass)
@@ -3223,10 +3227,10 @@ class CountReceptureConstant(QtWidgets.QWidget):
                 list_of_degree, list_of_glass = zip(*sorted_x_y)
 
                 maslo = Counter(dec_list_of_maslo).most_common(1)
-                self.tarir_maslo = Decimal(maslo[0][0].replace(',', '.'))
+                self.tarir_maslo = Decimal(str(maslo[0][0]).replace(',', '.'))
 
                 hiding_pigm = Counter(list_of_hiding_pigm).most_common(1)
-                self.tarir_hiding_pigm = Decimal(hiding_pigm[0][0].replace(',', '.'))
+                self.tarir_hiding_pigm = Decimal(str(hiding_pigm[0][0]).replace(',', '.'))
 
                 # print(maslo)
             self.plot.axes.clear()
@@ -3256,8 +3260,13 @@ class CountReceptureConstant(QtWidgets.QWidget):
 
             current_maslo = self.recepture.recepture_data.oil
             # print(f'current_maslo = {current_maslo}')
-            new_degree_pigm = tarir_const_nap / current_maslo
+            if current_maslo == 0:
+                InfoWindow("Текущая маслоемкость рецептуры равна 0", cancel_f=False).exec()
+
+            else:
+                new_degree_pigm = tarir_const_nap / current_maslo
             # print(f'new_degree_pigm = {new_degree_pigm}')
+
 
             suhoi = self.recepture.recepture_data.suhoi
 
@@ -3355,7 +3364,7 @@ class CountReceptureConstant(QtWidgets.QWidget):
                 lo.addWidget(label)
 
                 result_e = CustomEntry(w, padding=False)
-                result_e.setMaximumSize(50, 22)
+                result_e.setFixedWidth(75)
                 result_e.setReadOnly(True)
                 result_e.setText(mass)
                 lo.addWidget(result_e)
@@ -3375,7 +3384,7 @@ class CountReceptureConstant(QtWidgets.QWidget):
                     lo.addWidget(label)
 
                     result_e = CustomEntry(w, padding=False)
-                    result_e.setMaximumSize(50, 22)
+                    result_e.setFixedWidth(75)
                     result_e.setReadOnly(True)
                     result_e.setText(mass)
                     lo.addWidget(result_e)
@@ -3402,7 +3411,7 @@ class CountReceptureCombo(CountReceptureConstant):
         label.setText("Содержание нелетучих веществ, %:")
         lo.addWidget(label)
         self.goal_suhoi = CustomEntry(w, padding=False)
-        self.goal_suhoi.setMaximumSize(50, 22)
+        self.goal_suhoi.setFixedWidth(75)
         self.goal_suhoi.setValidator(get_numeric_validator())
         lo.addWidget(self.goal_suhoi)
         lo.setContentsMargins(0,0,0,0)
@@ -3413,7 +3422,7 @@ class CountReceptureCombo(CountReceptureConstant):
         label.setText("Требуемая укрывистость мокрой пленки, г/м²:")
         lo.addWidget(label)
         self.goal_hiding = CustomEntry(w, padding=False)
-        self.goal_hiding.setMaximumSize(50, 22)
+        self.goal_hiding.setFixedWidth(75)
         self.goal_hiding.setValidator(get_numeric_validator())
         lo.addWidget(self.goal_hiding)
         lo.addItem(get_h_spacer())
@@ -3545,7 +3554,7 @@ class CountReceptureCombo(CountReceptureConstant):
                 lo.addWidget(label)
 
                 result_e = CustomEntry(w, padding=False)
-                result_e.setMaximumSize(50, 22)
+                result_e.setFixedWidth(75)
                 result_e.setReadOnly(True)
                 result_e.setText(mass)
                 lo.addWidget(result_e)
@@ -3572,7 +3581,7 @@ class PhilumWindow(QtWidgets.QWidget):
                 background: #f9f9f9;
                 }
                 """)
-        self.philum_area = QtWidgets.QTextEdit(parent=self)
+        self.philum_area = CustomTextEdit(self, type="white")
         self.horizontalLayout.addWidget(self.philum_area)
         self.philum_area.setReadOnly(True)
         self.list_name = ['1.Красный и чёрный железоокисные ', '2.Окись хрома пигментная ',

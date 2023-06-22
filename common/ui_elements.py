@@ -5,12 +5,12 @@ from typing import List, Tuple
 
 import ncs
 import numpy as np
-from PyQt6 import QtGui, QtCore, QtWidgets
-from PyQt6.QtCore import QStringListModel, QRegularExpression, Qt, QSize, QRect, QModelIndex
-from PyQt6.QtGui import QImage, QFont, QRegularExpressionValidator, QIcon, QColor
+from PyQt5 import QtGui, QtCore, QtWidgets
+from PyQt5.QtCore import QStringListModel, QRegularExpression, Qt, QSize, QRect, QModelIndex
+from PyQt5.QtGui import QImage, QFont, QRegularExpressionValidator, QIcon, QColor
 from PIL import Image, ImageColor
 from PIL.ImageQt import ImageQt, QPixmap
-from PyQt6.QtWidgets import QAbstractItemView, QCompleter, QColorDialog
+from PyQt5.QtWidgets import QAbstractItemView, QCompleter, QColorDialog
 
 import sys
 import matplotlib
@@ -68,7 +68,11 @@ class HoverableButton(QtWidgets.QPushButton):
         self.icon_on.addPixmap(QtGui.QPixmap(os.path.join(BASE_DIR, img_dict[_type][1])), QtGui.QIcon.Mode.Normal, QtGui.QIcon.State.Off)
         self.icon_off = self.icon
         self.setIcon(self.icon)
-        self.setIconSize(QtCore.QSize(*size))
+        x, y = size
+        x = int(x * 1.5)
+        y = int(y * 1.5)
+
+        self.setIconSize(QtCore.QSize(x, y))
         additional = "padding-top: 7px;" if _type not in ["plus", "minus"] else ""
         self.setStyleSheet("""
                  QPushButton {
@@ -112,10 +116,13 @@ class DragHoverableButton(QtWidgets.QLabel):
         super(DragHoverableButton, self).__init__(parent)
         self.move_area_obj = move_area_obj
 
+        x, y = size
+        x = int(x * 1.5)
+        y = int(y * 1.5)
 
-        self.pixmap = QPixmap(os.path.join(BASE_DIR, "images/swap_icon.png")).scaled(size[0], size[1], aspectRatioMode=Qt.AspectRatioMode.KeepAspectRatio,
+        self.pixmap = QPixmap(os.path.join(BASE_DIR, "images/swap_icon.png")).scaled(x, y, aspectRatioMode=Qt.AspectRatioMode.KeepAspectRatio,
                                                  transformMode=Qt.TransformationMode.SmoothTransformation)
-        self.pixmap_on = QPixmap(os.path.join(BASE_DIR, "images/swap_icon-on.png")).scaled(size[0], size[1],
+        self.pixmap_on = QPixmap(os.path.join(BASE_DIR, "images/swap_icon-on.png")).scaled(x,y,
                                                                        aspectRatioMode=Qt.AspectRatioMode.KeepAspectRatio,
                                                                        transformMode=Qt.TransformationMode.SmoothTransformation)
 
@@ -149,6 +156,42 @@ class DragHoverableButton(QtWidgets.QLabel):
     #
     # def dropEvent(self, event: QtGui.QMouseEvent):
     #     self.move_area_obj.dropEvent(event)
+
+
+class CustomTextEdit(QtWidgets.QTextEdit):
+    def __init__(self, parent, type):
+        super(CustomTextEdit, self).__init__(parent=parent)
+        if type == "white":
+            self.setStyleSheet("""
+
+           QTextEdit {
+           background: white;
+           border: 0px solid white;
+                      }
+           QTextEdit:focus {
+                 background: white;
+           }
+            QLineEdit:hover{
+        background: white;
+            }
+
+           """)
+        elif type == "comment":
+            self.setFixedHeight(49)
+            self.setStyleSheet("""
+                    QTextEdit {
+                    border-bottom: 1px solid #aaa;
+                    border-right: 1px solid #aaa;
+                    border-radius: 2px;
+                    }
+                    QTextEdit:focus {
+                    border-bottom: 1px solid #209fa6;
+                    border-right: 1px solid #209fa6;
+                    }
+                    QLineEdit:hover{
+                    }
+                    """)
+
 
 
 class ColorButton(QtWidgets.QPushButton):
@@ -191,6 +234,7 @@ class CustomCombobox(QtWidgets.QComboBox):
         super(CustomCombobox, self).__init__(parent=parent)
         self._type = _type
         self.wheelEvent = lambda event: None
+        self.setMinimumSize(350, 32)
         self.setCursor(QtGui.QCursor(QtCore.Qt.CursorShape.PointingHandCursor))
         self.setStyleSheet("""
 
@@ -247,6 +291,7 @@ class CustomEntry(QtWidgets.QLineEdit):
     def __init__(self, parent, padding=True):
         super(CustomEntry, self).__init__(parent=parent)
         padding = "padding-right:30px;" if padding else ""
+        self.setMinimumSize(250, 32)
         self.setStyleSheet("""
 
         QLineEdit {{
@@ -396,7 +441,7 @@ class CustomListItem(QtWidgets.QListView):
 
 
 class MplCanvas(FigureCanvasQTAgg):
-    def __init__(self, parent=None, width=5, height=4, dpi=90):
+    def __init__(self, parent=None, width=5, height=5, dpi=90):
         self.fig = Figure(figsize=(width, height), dpi=dpi)
         self.fig.set(facecolor='#f9f9f9')
         self.axes = self.fig.add_subplot(111)
@@ -412,7 +457,6 @@ class MplCanvas(FigureCanvasQTAgg):
         # print(x, a, b, c)
         return a * np.float_power(x, 4) + b * np.float_power(x, 3) + c * np.float_power(x, 2) \
                + d * np.float_power(x, 1) + e
-
 
 
 class ChoiceColor(QtWidgets.QWidget):
@@ -441,6 +485,7 @@ class ChoiceColor(QtWidgets.QWidget):
         self.comboBox_ral.currentIndexChanged.connect(lambda: self.set_ral_color())
         self.verticalLayout_3.addWidget(self.comboBox_ral)
         self.verticalLayout_3.addItem(get_v_spacer())
+        fix_tab_bg(self.ral_tab)
         self.tabWidget.addTab(self.ral_tab, "RAL")
 
         self.ncs_tab = QtWidgets.QWidget()
@@ -460,6 +505,7 @@ class ChoiceColor(QtWidgets.QWidget):
         self.update()
         self.verticalLayout_4.addWidget(self.comboBox_ncs)
         self.verticalLayout_4.addItem(get_v_spacer())
+        fix_tab_bg(self.ncs_tab)
         self.tabWidget.addTab(self.ncs_tab, "NCS")
 
         self.lab_tab = QtWidgets.QWidget()
@@ -495,6 +541,7 @@ class ChoiceColor(QtWidgets.QWidget):
         lo.addWidget(self.lab_b_e)
 
         self.verticalLayout_5.addItem(get_v_spacer())
+        fix_tab_bg(self.lab_tab)
         self.tabWidget.addTab(self.lab_tab, "LAB")
 
         self.rgb_tab = QtWidgets.QWidget()
@@ -503,6 +550,7 @@ class ChoiceColor(QtWidgets.QWidget):
         self.rgb_button.setText("Выбрать RGB")
         self.rgb_button.clicked.connect(lambda:self.set_rgb_color())
         self.verticalLayout_6.addWidget(self.rgb_button)
+        fix_tab_bg(self.rgb_tab)
         self.tabWidget.addTab(self.rgb_tab, "RGB")
 
         self.verticalLayout.addWidget(self.tabWidget)
@@ -516,7 +564,7 @@ class ChoiceColor(QtWidgets.QWidget):
         self.color_l = QtWidgets.QLabel(parent=self.common_w)
         image = QtGui.QPixmap(generate_color("#00000000"))
         self.color_l.setPixmap(image)
-        self.color_l.setMaximumSize(QSize(82, 80))
+        self.color_l.setMaximumSize(QSize(99, 99))
         self.color_l.setStyleSheet("""
                 QLabel{
                 border: 1px solid #ddd;
@@ -634,6 +682,8 @@ class ChoiceColor(QtWidgets.QWidget):
 
 
 def generate_color(argb: str) -> QImage:
+    if argb is None:
+        argb = "#00ffffff"
     background = Image.open(os.path.join(BASE_DIR.rstrip("common").replace("\\" ,"/"), "images/black_white_background.png"))
     background = background.convert("RGBA")
     width, height = background.size
@@ -647,9 +697,12 @@ def generate_color(argb: str) -> QImage:
 
 
 def generate_font(size: int, bold=False) -> QFont:
-    font = QtGui.QFont()
+    if bold:
+        font = QtGui.QFont("Roboto-Medium")
+    else:
+        font = QtGui.QFont("Roboto-Regular")
+
     font.setPointSize(size)
-    font.setBold(bold)
     return font
 
 
@@ -722,3 +775,12 @@ def change_position_window(self, x: int = 0, y: int = 0):
 
 def set_window_icon(self):
     self.setWindowIcon(QtGui.QIcon(os.path.join(BASE_DIR, 'images/icon.png')))
+
+def fix_tab_bg(tab:QtWidgets.QWidget):
+    tab.setObjectName("tab")
+    tab.setStyleSheet("""
+    QWidget#tab{
+      background: #f9f9f9;
+      border: 0px solid black;
+    }
+    """)

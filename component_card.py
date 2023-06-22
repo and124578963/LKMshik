@@ -1,12 +1,13 @@
 import os
 import webbrowser
 
-from PyQt6 import QtCore, QtGui, QtWidgets
-from PyQt6.QtCore import QRegularExpression
-from PyQt6.QtGui import QColor, QIcon, QRegularExpressionValidator
-from PyQt6.QtWidgets import QWidget, QGridLayout, QFileDialog, QColorDialog
+from PyQt5 import QtCore, QtGui, QtWidgets
+from PyQt5.QtCore import QRegularExpression
+from PyQt5.QtGui import QColor, QIcon, QRegularExpressionValidator
+from PyQt5.QtWidgets import QWidget, QGridLayout, QFileDialog, QColorDialog
 
-from common.ui_elements import generate_color, CustomEntry, CustomCombobox, ColorButton, set_window_icon
+from common.ui_elements import generate_color, CustomEntry, CustomCombobox, ColorButton, set_window_icon, create_w_lo, \
+    change_position_window, CustomTextEdit, fix_tab_bg
 from database import DB
 from common.settings import TABLE_DICT, get_category, get_lables, get_columns, get_desc
 
@@ -16,6 +17,7 @@ class ComponentCard(QWidget):
     def __init__(self, parent_window, category, btn_save_name='Сохранить', global_check=False):
         super().__init__()
         set_window_icon(self)
+        self.resize(800, 400)
         self.global_check = global_check
         self.parent_window = parent_window
         self.db = DB(global_check=global_check)
@@ -24,7 +26,7 @@ class ComponentCard(QWidget):
         self.passport_flg = False  # флаг наличия пасспорта безопасности
         self.list_save_btn = []
         self.setObjectName("Form")
-        self.resize(537, 444)
+
         self.horizontalLayout = QtWidgets.QHBoxLayout(self)
         self.horizontalLayout.setContentsMargins(0, 0, 0, 0)
         self.horizontalLayout.setObjectName("horizontalLayout")
@@ -48,6 +50,7 @@ class ComponentCard(QWidget):
 
         self.tabWidget.setCurrentIndex(0)
         QtCore.QMetaObject.connectSlotsByName(self)
+        change_position_window(self, 0, -200)
 
     def load_structure(self):
         self.category_name = {y: x for x, y in TABLE_DICT.items()}[self.category]
@@ -178,14 +181,14 @@ class ComponentCard(QWidget):
         self.verticalLayout_2.addItem(spacerItem)
 
         self.add_save_button(self.tab_w, self.gridLayout, space=False)
-
+        fix_tab_bg(self.tab_w)
         self.tabWidget.addTab(self.tab_w, "Общие")
 
     def init_countable_tab(self):
         self.tab_2 = QtWidgets.QWidget()
         self.tab_2.setObjectName("tab_2")
         self.verticalLayout_countable = QtWidgets.QVBoxLayout(self.tab_2)
-        self.verticalLayout_countable.setContentsMargins(0, 9, 0, -1)
+        self.verticalLayout_countable.setContentsMargins(0, 9, 0, 0)
         self.verticalLayout_countable.setSpacing(0)
         self.row_widget_countable = QtWidgets.QWidget(parent=self.tab_2)
         self.gridLayout_row_widget_countable = QtWidgets.QGridLayout(self.row_widget_countable)
@@ -196,14 +199,14 @@ class ComponentCard(QWidget):
                                                self.countable_params)
 
         self.add_save_button(self.tab_2, self.verticalLayout_countable, space=True)
-
+        fix_tab_bg(self.tab_2)
         self.tabWidget.addTab(self.tab_2, "Расчетные параметры")
 
     def init_pb_tab(self):
         self.tab_3 = QtWidgets.QWidget()
         self.tab_3.setObjectName("tab_3")
         self.verticalLayout_pb = QtWidgets.QVBoxLayout(self.tab_3)
-        self.verticalLayout_pb.setContentsMargins(0, 9, 0, -1)
+        self.verticalLayout_pb.setContentsMargins(0, 9, 0, 0)
         self.verticalLayout_pb.setSpacing(0)
         self.row_widget_pb = QtWidgets.QWidget(parent=self.tab_3)
         self.gridLayout_row_widget_pb = QtWidgets.QGridLayout(self.row_widget_pb)
@@ -211,31 +214,33 @@ class ComponentCard(QWidget):
         self.verticalLayout_pb.addWidget(self.row_widget_pb)
         self.list_pb_entry = self.draw_rows(self.row_widget_pb, self.gridLayout_row_widget_pb, self.pb_params)
         self.add_save_button(self.tab_3, self.verticalLayout_pb, space=True)
+        fix_tab_bg(self.tab_3)
         self.tabWidget.addTab(self.tab_3, "Паспорт безопасности")
 
     def init_application_tab(self):
         self.tab_4 = QtWidgets.QWidget()
         self.tab_4.setObjectName("tab_4")
         self.verticalLayout_3 = QtWidgets.QVBoxLayout(self.tab_4)
-        self.verticalLayout_3.setContentsMargins(0, 0, 0, 9)
+        self.verticalLayout_3.setContentsMargins(0, 0, 0, 0)
         self.verticalLayout_3.setObjectName("verticalLayout_3")
-        self.application_text_area = QtWidgets.QTextEdit(parent=self.tab_4)
+        self.application_text_area = CustomTextEdit(self.tab_4, type="white")
         self.verticalLayout_3.addWidget(self.application_text_area)
 
         self.add_save_button(self.tab_4, self.verticalLayout_3)
-
+        fix_tab_bg(self.tab_4)
         self.tabWidget.addTab(self.tab_4, "Применение")
 
     def init_note_tab(self):
         self.tab_5 = QtWidgets.QWidget()
         self.tab_5.setObjectName("tab_5")
         self.verticalLayout = QtWidgets.QVBoxLayout(self.tab_5)
-        self.verticalLayout.setContentsMargins(0, 0, 0, -1)
+        self.verticalLayout.setContentsMargins(0, 0, 0, 0)
         self.verticalLayout.setObjectName("verticalLayout")
-        self.note_text_area = QtWidgets.QTextEdit(parent=self.tab_5)
+        self.note_text_area = CustomTextEdit(self.tab_5, type="white")
         self.verticalLayout.addWidget(self.note_text_area)
 
         self.add_save_button(self.tab_5, self.verticalLayout)
+        fix_tab_bg(self.tab_5)
         self.tabWidget.addTab(self.tab_5, "Заметки")
 
     def draw_rows(self, parent: QWidget, gridLayout: QGridLayout, list_params: list):
@@ -315,11 +320,12 @@ class ComponentCard(QWidget):
             spacerItem = QtWidgets.QSpacerItem(20, 40, QtWidgets.QSizePolicy.Policy.Minimum,
                                                QtWidgets.QSizePolicy.Policy.Expanding)
             layout.addItem(spacerItem)
-
-        save_btn = ColorButton(parent, color="blue")
+        w, lo = create_w_lo(parent, layout)
+        lo.setContentsMargins(16,16,16,16)
+        save_btn = ColorButton(w, color="blue")
         save_btn.setText(self.btn_save_name)
         save_btn.clicked.connect(self.save_data)
-        layout.addWidget(save_btn, *coord)
+        lo.addWidget(save_btn, *coord)
         self.list_save_btn.append(save_btn)
 
     def save_data(self):
@@ -416,8 +422,8 @@ class ComponentCard(QWidget):
 
     def open_file_dialog(self, goal_entry: QtWidgets.QLineEdit):
         dialog = QFileDialog(self)
-        dialog.setFileMode(QFileDialog.fileMode(dialog).AnyFile)
-        dialog.setViewMode(QFileDialog.viewMode(dialog).Detail)
+        dialog.setFileMode(QFileDialog.AnyFile)
+        dialog.setViewMode(QFileDialog.Detail)
 
         if dialog.exec():
             fileNames = dialog.selectedFiles()
