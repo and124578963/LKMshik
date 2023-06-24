@@ -1086,7 +1086,7 @@ class AddProjectWindow(QtWidgets.QWidget):
         self.list_entry_value_obj.append(value)
         horizontalLayout.addWidget(value)
         minus = HoverableButton(row_param, "minus", [16, 16])
-        minus.clicked.connect(lambda _index=self.row, frame=row_param: self.del_row(_index, frame))
+        minus.clicked.connect(lambda event, _index=self.row, frame=row_param: self.del_row(_index, frame))
         minus.setObjectName("minus")
         horizontalLayout.addWidget(minus, alignment=QtCore.Qt.AlignmentFlag.AlignLeft)
 
@@ -1101,6 +1101,8 @@ class AddProjectWindow(QtWidgets.QWidget):
     def collect_data(self):
         data_params = []
         data_params_value = []
+        print(f"self.list_entry_name_obj {self.list_entry_name_obj}")
+        print(f"self.list_entry_value_obj {self.list_entry_value_obj}")
         for name, value in zip(self.list_entry_name_obj, self.list_entry_value_obj):
             name: QtWidgets.QLineEdit
             value: QtWidgets.QLineEdit

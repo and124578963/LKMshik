@@ -379,9 +379,9 @@ class ReceptureWindow(QtWidgets.QWidget):
         self.scrollArea_2.setWidget(self.exp_s_area)
         self.gridLayout_2.addWidget(self.scrollArea_2, 2, 0, 1, 4)
 
-        # spacerItem3 = QtWidgets.QSpacerItem(20, 40, QtWidgets.QSizePolicy.Policy.Minimum,
-        #                                     QtWidgets.QSizePolicy.Policy.Expanding)
-        # self.gridLayout_2.addItem(spacerItem3, 100, 0, 1, 1)
+        spacerItem3 = QtWidgets.QSpacerItem(20, 40, QtWidgets.QSizePolicy.Policy.Minimum,
+                                            QtWidgets.QSizePolicy.Policy.Maximum)
+        self.gridLayout_2.addItem(spacerItem3, 100, 0, 1, 1)
         self.horizontalLayout_2.addWidget(self.exp_params_w)
 
         self.color_w = QtWidgets.QWidget(parent=self.exp_body_w)
@@ -1338,12 +1338,13 @@ class ReceptureDataModel:
         else:
             return self.density
 
-    def map_encrypt(self, str):
+    def map_encrypt(self, _str):
+        _str = str(_str)
         password = Secrets.password
-        if self.project not in self.not_encoded_projects and str != "$None":
-            result = Secrets().symmetric_encrypt(str.encode(), password)
+        if self.project not in self.not_encoded_projects and _str != "$None":
+            result = Secrets().symmetric_encrypt(_str.encode(), password)
         else:
-            result = str
+            result = _str
         return result
 
     def map_decrypt(self, byte):
@@ -3721,9 +3722,10 @@ class WordExport:
             dialog.setWindowTitle("Выберите папку для сохранения")
             dialog.setFileMode(QFileDialog.FileMode.Directory)
             dialog.setOptions(QFileDialog.Option.DontUseNativeDialog)
+            name_for_file = self.name.replace(' ', "_")
             if dialog.exec():
                 new_file = dialog.selectedFiles()[0]
-                new_file = f"{new_file}\\{self.name}.docx"
+                new_file = f"{new_file}\\{name_for_file}.docx"
             else:
                 return
 

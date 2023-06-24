@@ -177,7 +177,7 @@ class MyComponentsUi(QWidget):
 
     def retranslateUi(self, MainWindow):
         _translate = QtCore.QCoreApplication.translate
-        MainWindow.setWindowTitle(_translate("MainWindow", "ЛКМщик - Моя лаборатория"))
+        MainWindow.setWindowTitle(_translate("MainWindow", "ЛКМщик - Мои компоненты"))
 
         self.del_btn.setShortcut(_translate("MainWindow", "Del"))
 

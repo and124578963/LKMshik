@@ -40,6 +40,8 @@ class MainWindow(QMainWindow):
         except Exception as e:
             logging.info("Ошибка при создании бэкапа", exc_info=True)
 
+        exit(0)
+
     def set_state(self, state):
         delete_chield(self.verticalLayout)
         if state == "activation":
