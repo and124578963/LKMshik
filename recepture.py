@@ -177,63 +177,85 @@ class ReceptureWindow(QtWidgets.QWidget):
 
 
         self.price_l = QtWidgets.QLabel(parent=self.right_side)
-        self.price_l.setText("Стоимость:")
+        self.price_l.setText("Стоимость за кг:")
         self.verticalLayout_6.addWidget(self.price_l)
 
-        self.density_l = QtWidgets.QLabel(parent=self.right_side)
-        self.density_l.setText("Плотность:")
-        self.verticalLayout_6.addWidget(self.density_l)
+        self.all_price_l = QtWidgets.QLabel(parent=self.right_side)
+        self.all_price_l.setText("Стоимость:")
+        self.verticalLayout_6.addWidget(self.all_price_l)
 
-        w, lo = create_w_lo(self.right_side, self.verticalLayout_6)
-        self.suhoi_l = QtWidgets.QLabel(parent=w)
-        self.suhoi_l.setText("Масс.д.н.в:")
-        lo.addWidget(self.suhoi_l)
 
-        self.volume_suhoi_l = QtWidgets.QLabel(parent=w)
-        self.volume_suhoi_l.setText("Объем.д.н.в:")
-        lo.addWidget(self.volume_suhoi_l)
+        self.protein_l = QtWidgets.QLabel(parent=self.right_side)
+        self.protein_l.setText("Белки:")
+        self.verticalLayout_6.addWidget(self.protein_l)
+
+        self.all_protein_l = QtWidgets.QLabel(parent=self.right_side)
+        self.all_protein_l.setText("Белки всего:")
+        self.verticalLayout_6.addWidget(self.all_protein_l)
 
 
         self.oil_l = QtWidgets.QLabel(parent=self.right_side)
-        self.oil_l.setText("Маслоемкость 1-го рода:")
+        self.oil_l.setText("Жиры:")
         self.verticalLayout_6.addWidget(self.oil_l)
 
-        self.philum_l = QtWidgets.QLabel(parent=self.right_side)
-        self.philum_l.setText("Филум пигментов:")
-        self.verticalLayout_6.addWidget(self.philum_l)
+        self.all_oil_l = QtWidgets.QLabel(parent=self.right_side)
+        self.all_oil_l.setText("Жиры всего:")
+        self.verticalLayout_6.addWidget(self.all_oil_l)
 
-        self.degree_pigm_l = QtWidgets.QLabel(parent=self.right_side)
-        self.degree_pigm_l.setText("Степень пигментирования:")
-        self.verticalLayout_6.addWidget(self.degree_pigm_l)
 
-        self.const_pigm_l = QtWidgets.QLabel(parent=self.right_side)
-        self.const_pigm_l.setText("Константа наполнения:")
-        self.verticalLayout_6.addWidget(self.const_pigm_l)
+        self.carbon_l = QtWidgets.QLabel(parent=self.right_side)
+        self.carbon_l.setText("Углеводы:")
+        self.verticalLayout_6.addWidget(self.carbon_l)
 
-        w, lo = create_w_lo(self.right_side, self.verticalLayout_6)
-        self.okp_l = QtWidgets.QLabel(parent=w)
-        self.okp_l.setText("ОКП:")
-        lo.addWidget(self.okp_l)
+        self.all_carbon_l = QtWidgets.QLabel(parent=self.right_side)
+        self.all_carbon_l.setText("Углеводы всего:")
+        self.verticalLayout_6.addWidget(self.all_carbon_l)
 
-        self.kokp_l = QtWidgets.QLabel(parent=w)
-        self.kokp_l.setText("КОКП:")
-        lo.addWidget(self.kokp_l)
 
-        self.okp_kokp_l = QtWidgets.QLabel(parent=w)
-        self.okp_kokp_l.setText("ОКП/КОКП:")
-        lo.addWidget(self.okp_kokp_l)
+        self.energy_l = QtWidgets.QLabel(parent=self.right_side)
+        self.energy_l.setText("Ккал:")
+        self.verticalLayout_6.addWidget(self.energy_l)
 
-        self.hiding_pigm_l = QtWidgets.QLabel(parent=self.right_side)
-        self.hiding_pigm_l.setText("Укрывистость пигментов:")
-        self.verticalLayout_6.addWidget(self.hiding_pigm_l)
-
-        self.hiding_wet_l = QtWidgets.QLabel(parent=self.right_side)
-        self.hiding_wet_l.setText("Укрывистость мокрой пленки:")
-        self.verticalLayout_6.addWidget(self.hiding_wet_l)
-
-        self.hiding_dry_l = QtWidgets.QLabel(parent=self.right_side)
-        self.hiding_dry_l.setText("Укрывистость сухой пленки:")
-        self.verticalLayout_6.addWidget(self.hiding_dry_l)
+        self.all_energy_l = QtWidgets.QLabel(parent=self.right_side)
+        self.all_energy_l.setText("Ккал всего:")
+        self.verticalLayout_6.addWidget(self.all_energy_l)
+        #
+        # self.philum_l = QtWidgets.QLabel(parent=self.right_side)
+        # self.philum_l.setText("Филум пигментов:")
+        # self.verticalLayout_6.addWidget(self.philum_l)
+        #
+        # self.degree_pigm_l = QtWidgets.QLabel(parent=self.right_side)
+        # self.degree_pigm_l.setText("Степень пигментирования:")
+        # self.verticalLayout_6.addWidget(self.degree_pigm_l)
+        #
+        # self.const_pigm_l = QtWidgets.QLabel(parent=self.right_side)
+        # self.const_pigm_l.setText("Константа наполнения:")
+        # self.verticalLayout_6.addWidget(self.const_pigm_l)
+        #
+        # w, lo = create_w_lo(self.right_side, self.verticalLayout_6)
+        # self.okp_l = QtWidgets.QLabel(parent=w)
+        # self.okp_l.setText("ОКП:")
+        # lo.addWidget(self.okp_l)
+        #
+        # self.kokp_l = QtWidgets.QLabel(parent=w)
+        # self.kokp_l.setText("КОКП:")
+        # lo.addWidget(self.kokp_l)
+        #
+        # self.okp_kokp_l = QtWidgets.QLabel(parent=w)
+        # self.okp_kokp_l.setText("ОКП/КОКП:")
+        # lo.addWidget(self.okp_kokp_l)
+        #
+        # self.hiding_pigm_l = QtWidgets.QLabel(parent=self.right_side)
+        # self.hiding_pigm_l.setText("Укрывистость пигментов:")
+        # self.verticalLayout_6.addWidget(self.hiding_pigm_l)
+        #
+        # self.hiding_wet_l = QtWidgets.QLabel(parent=self.right_side)
+        # self.hiding_wet_l.setText("Укрывистость мокрой пленки:")
+        # self.verticalLayout_6.addWidget(self.hiding_wet_l)
+        #
+        # self.hiding_dry_l = QtWidgets.QLabel(parent=self.right_side)
+        # self.hiding_dry_l.setText("Укрывистость сухой пленки:")
+        # self.verticalLayout_6.addWidget(self.hiding_dry_l)
 
         w, lo = create_w_lo(self.right_side, self.verticalLayout_6)
         self.count_btn = DarkBtn_Ui(w, "calc")
@@ -632,19 +654,16 @@ class ReceptureWindow(QtWidgets.QWidget):
         data = self.recepture_data
         list_update_lable_value = (
             (self.price_l, data.price, "руб/кг"),
-            (self.oil_l, data.oil, "г/100 г"),
-            (self.suhoi_l, data.suhoi, "%"),
-            (self.volume_suhoi_l, data.volume_suhoi, "%"),
-            (self.okp_l, data.okp, "%"),
-            (self.kokp_l, data.kokp, "%"),
-            (self.okp_kokp_l, data.okp_kokp, "%"),
-            (self.hiding_pigm_l, data.hiding_pigm, "г/м²"),
-            (self.hiding_wet_l, data.hiding_wet, "г/м²"),
-            (self.hiding_dry_l, data.hiding_dry, "г/м²"),
-            (self.philum_l, data.philum, ""),
-            (self.density_l, data.get_density(), "г/см³"),
-            (self.degree_pigm_l, data.degree_pigm, ""),
-            (self.const_pigm_l, data.const_pigm, ""),
+            (self.protein_l, data.protein, "%"),
+            (self.oil_l, data.oil, "%"),
+            (self.carbon_l, data.carbon, "%"),
+            (self.energy_l, data.energy, "ккал/100г"),
+
+            (self.all_price_l, data.all_price, "руб/кг"),
+            (self.all_protein_l, data.all_protein, "г"),
+            (self.all_oil_l, data.all_oil, "г"),
+            (self.all_carbon_l, data.all_carbon, "г"),
+            (self.all_energy_l, data.all_energy, "ккал"),
         )
         for lable, value, size in list_update_lable_value:
             self.update_lable_param(lable, value, size)
@@ -910,7 +929,7 @@ class ComponentRow(QtWidgets.QFrame):
         # self.comment.setMaximumWidth(500)
         # self.comment.setContentsMargins(32,0,0,0)
         self.comment.setMinimumWidth(303)
-        self.comment.setFixedHeight(50)
+        self.comment.setFixedHeight(75)
 
         self.horizontalLayout_4.addWidget(self.comment)
         self.comment.textChanged.connect(lambda: self.unsave_callback())
@@ -986,40 +1005,10 @@ class ComponentRow(QtWidgets.QFrame):
         self.unsave_callback()
         text = ""
         tooltip = ""
-        if len(self.db.check_group_reactives("Solvents", name)) == 1:
-            self.category_obj = Solvents(name, "0")
-            self.category = "Solvents"
+        if len(self.db.check_group_reactives("Components", name)) == 1:
+            self.category_obj = Components(name, "0")
+            self.category = "Components"
             icon_path = "images/solvent.png"
-            tooltip = self.category_obj.to_string()
-        elif len(self.db.check_group_reactives("Pigments", name)) == 1:
-            self.category_obj = Pigments(name, "0")
-            self.category = "Pigments"
-            icon_path = "images/pigment.png"
-            tooltip = self.category_obj.to_string()
-        elif len(self.db.check_group_reactives("Fillers", name)) == 1:
-            self.category_obj = Fillers(name, "0")
-            self.category = "Fillers"
-            icon_path = "images/filler.png"
-            tooltip = self.category_obj.to_string()
-        elif len(self.db.check_group_reactives("Films", name)) == 1:
-            self.category_obj = Films(name, "0")
-            self.category = "Films"
-            icon_path = "images/film.png"
-            tooltip = self.category_obj.to_string()
-        elif len(self.db.check_group_reactives("Additives", name)) == 1:
-            self.category_obj = Additives(name, "0")
-            self.category = "Additives"
-            icon_path = "images/additive.png"
-            tooltip = self.category_obj.to_string()
-        elif len(self.db.check_group_reactives("PigmPast", name)) == 1:
-            self.category_obj = Pigmpasts(name, "0")
-            self.category = "PigmPast"
-            icon_path = "images/pigm_past.png"
-            tooltip = self.category_obj.to_string()
-        elif len(self.db.check_group_reactives("Hardener", name)) == 1:
-            self.category_obj = Hardeners(name, "0")
-            self.category = "Hardener"
-            icon_path = "images/hardener.png"
             tooltip = self.category_obj.to_string()
         else:
             self.category = ""
@@ -1290,6 +1279,16 @@ class ReceptureDataModel:
         self.project = project
         self.iteration = iteration
         self.name = name
+        self.protein = 0
+        self.carbon = 0
+        self.oil = 0
+        self.energy = 0
+        self.all_price = 0
+        self.all_carbon = 0
+        self.all_oil = 0
+        self.all_protein = 0
+        self.all_energy = 0
+
 
         self.not_encoded_projects = ['Тарировочные_кривые', 'Тарировочные кривые', 'Примеры']
 
@@ -1595,57 +1594,45 @@ class ReceptureDataModel:
     def create_category_objs(self):
         components, categories = self.get_actual_data_for_count()
 
-        self.list_of_solvent_objects = []
-        self.list_of_pigment_objects = []
-        self.list_of_filler_objects = []
-        self.list_of_film_objects = []
-        self.list_of_additive_objects = []
-        self.list_of_pigmpast_objects = []
-        self.list_of_hardener_objects = []
+        self.list_of_component_objects = []
+        # self.list_of_solvent_objects = []
+        # self.list_of_pigment_objects = []
+        # self.list_of_filler_objects = []
+        # self.list_of_film_objects = []
+        # self.list_of_additive_objects = []
+        # self.list_of_pigmpast_objects = []
+        # self.list_of_hardener_objects = []
 
         for (name, mass), cat in zip(components, categories):
-            if cat == "Solvents":
-                self.list_of_solvent_objects.append(Solvents(name, mass))
-            elif cat == "Pigments":
-                self.list_of_pigment_objects.append(Pigments(name, mass))
-            elif cat == "Fillers":
-                self.list_of_filler_objects.append(Fillers(name, mass))
-            elif cat == "Films":
-                self.list_of_film_objects.append(Films(name, mass))
-            elif cat == "Additives":
-                self.list_of_additive_objects.append(Additives(name, mass))
-            elif cat == "PigmPast":
-                self.list_of_pigmpast_objects.append(Pigmpasts(name, mass))
-            elif cat == "Hardener":
-                self.list_of_hardener_objects.append(Hardeners(name, mass))
-            else:
-                pass
+            if cat == "Components":
+                self.list_of_component_objects.append(Components(name, mass))
+            # elif cat == "Pigments":
+            #     self.list_of_pigment_objects.append(Pigments(name, mass))
+            # elif cat == "Fillers":
+            #     self.list_of_filler_objects.append(Fillers(name, mass))
+            # elif cat == "Films":
+            #     self.list_of_film_objects.append(Films(name, mass))
+            # elif cat == "Additives":
+            #     self.list_of_additive_objects.append(Additives(name, mass))
+            # elif cat == "PigmPast":
+            #     self.list_of_pigmpast_objects.append(Pigmpasts(name, mass))
+            # elif cat == "Hardener":
+            #     self.list_of_hardener_objects.append(Hardeners(name, mass))
+            # else:
+            #     pass
 
     def get_components_obj(self):
         self.create_category_objs()
-
-        return self.list_of_solvent_objects + self.list_of_pigment_objects + self.list_of_filler_objects + \
-        self.list_of_film_objects + self.list_of_additive_objects + self.list_of_pigmpast_objects +\
-        self.list_of_hardener_objects
+        return self.list_of_component_objects
 
     def all_count(self):
         info_text = ""
         self.count_mass()
         self.create_category_objs()
 
-        list_count_funcs = [(self.count_price, "Ошибка в расчете цены. Переведите валюту в Руб."),
-                            (self.all_mass_for_suhoi_f, "Ошибка в расчете массы"),
-                            (self.all_suhoi_in_objects, "Ошибка при расчете м.д.н.в."),
-                            (lambda: self.all_suhoi_in_objects(for_volume=True), "Ошибка при расчете м.д.н.в."),
-                            (self.all_density_in_objects, "Ошибка в расчете плотности"),
-                            (self.all_degree_pigm_in_objects, "Ошибка в расчете степени пигм."),
-                            (self.all_okp_in_objects, "Ошибка в расчете ОКП"),
-                            (self.all_oil_in_objects, "Ошибка в расчете маслоемкости"),
-                            (self.all_const_pigm_in_objects, "Ошибка в расчете кН"),
-                            (self.all_hiding_in_objects, "Ошибка в расчете укрывистости"),
-                            (self.filum_in_objects, "Ошибка в расчете филума"),
-                            (self.all_kokp_maslo_in_objects, "Ошибка в расчете КОКП"),
-                            (self.all_volume_suhoi_in_objects, 'Ошибка в расчете об. доли нелетучих в-в'),
+        list_count_funcs = [
+
+                            (self.count_price, "Ошибка в расчете цены. Переведите валюту в Руб."),
                             ]
 
 
@@ -1665,24 +1652,37 @@ class ReceptureDataModel:
     def count_price(self):
         all_mass = self.mass
         all_price = Decimal(0)
+        all_carbon = Decimal(0)
+        all_oil = Decimal(0)
+        all_protein = Decimal(0)
+        all_energy = Decimal(0)
 
-        for i in self.list_of_solvent_objects:
-            all_price += (i.mass * i.price) / all_mass
-        for i in self.list_of_pigment_objects:
-            all_price += (i.mass * i.price) / all_mass
-        for i in self.list_of_filler_objects:
-            all_price += (i.mass * i.price) / all_mass
-        for i in self.list_of_film_objects:
-            all_price += (i.mass * i.price) / all_mass
-        for i in self.list_of_additive_objects:
-            all_price += (i.mass * i.price) / all_mass
-        for i in self.list_of_pigmpast_objects:
-            all_price += (i.mass * i.price) / all_mass
-        for i in self.list_of_hardener_objects:
-            all_price += (i.mass * i.price) / all_mass
-        all_price *= Decimal(self.price_K)
+
+
+        for i in self.list_of_component_objects:
+            i: Components
+            price_per_kg = (i.price / i.mass_per_tar) * 1000  # цена за 1000 г (1 кг)
+
+            all_price += (i.mass * price_per_kg) / all_mass
+            all_carbon += (i.mass * i.carbon) / all_mass
+            all_oil += (i.mass * i.oil) / all_mass
+            all_protein += (i.mass * i.protein) / all_mass
+            all_energy += (i.mass * i.energy) / all_mass
+
+
 
         self.price = all_price
+        self.energy = all_energy
+        self.protein = all_protein
+        self.oil = all_oil
+        self.carbon = all_carbon
+
+        self.all_price = (all_price / 1000) * all_mass
+
+        self.all_carbon = (all_carbon / 100) * all_mass
+        self.all_oil = (all_oil / 100) * all_mass
+        self.all_protein = (all_protein / 100) * all_mass
+        self.all_energy = (all_energy / 100) * all_mass
 
 
     def all_mass_for_suhoi_f(self):
@@ -2250,20 +2250,13 @@ class Component:
         self.db = Component.db
         self.name = name
         self.mass = Decimal(mass.replace(",", "."))
-        valuta = self.db.get_info_reactive(category, self.name, 'valuta')[0][0]
-        price = self.get_and_fix_from_db(category, self.name, 'price')
-        try:
-            if valuta != 'Руб':
-                self.price = self.convert_price(valuta, price)
-            else:
-                self.price = price
-        except Exception as e:
-            logging.error("Не удалось перевести цену", e)
-            self.price = Decimal(0)
+        # valuta = self.db.get_info_reactive(category, self.name, 'valuta')[0][0]
+        self.price = self.get_and_fix_from_db(category, self.name, 'price')
+
         self.dry_mass = None
 
     def get_and_fix_from_db(self, category, component, param) -> Decimal:
-        result = self.db.get_info_reactive(category, component, param)[0][0].replace(",", ".")
+        result: str = self.db.get_info_reactive(category, component, param)[0][0].replace(",", ".").strip()
         try:
             result = Decimal(result)
         except Exception as e:
@@ -2291,19 +2284,19 @@ class Component:
         return converted_price
 
 
-class Solvents(Component):
+class Components(Component):
     def __init__(self, name, mass):
-        super(Solvents, self).__init__(name, mass, 'Solvents')
-        self.density = self.get_and_fix_from_db('Solvents', self.name, 'density')
-        self.density_solvent = self.density
-        self.suhoi = Decimal('0')
-        self.dry_mass = Decimal('0')
-        # print(self.to_string())
+        super(Components, self).__init__(name, mass, 'Components')
+        self.protein = self.get_and_fix_from_db('Components', self.name, 'protein')
+        self.oil = self.get_and_fix_from_db('Components', self.name, 'oil')
+        self.carbon = self.get_and_fix_from_db('Components', self.name, 'carbon')
+        self.energy = self.get_and_fix_from_db('Components', self.name, 'energy')
+        self.mass_type = self.db.get_info_reactive('Components', self.name, 'mass_type')[0][0]
+        self.mass_per_tar = self.get_and_fix_from_db('Components', self.name, 'mass_per_tar')
 
     def to_string(self):
         return f"""Растворитель:
-        Цена: {self.price}
-        Плотность: {self.density}"""
+        Цена: {self.price}"""
 
 
 class Pigments(Component):

@@ -140,7 +140,7 @@ class MyComponentsUi(QWidget):
         self.table.doubleClicked.connect(self.edit_component_card)
         self.verticalLayout_2.addWidget(self.table)
 
-        self.select_category("Solvents")
+        self.select_category("Components")
 
         self.table.show()
         self.horizontalLayout.addWidget(self.right_side)

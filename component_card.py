@@ -332,8 +332,8 @@ class ComponentCard(QWidget):
         concat_columns = self.general_columns
         if self.category != 'Producer':
             concat_columns += ", " + self.countable_columns
-        if self.passport_flg:
-            concat_columns += ", " + self.pb_columns
+        # if self.passport_flg:
+        #     concat_columns += ", " + self.pb_columns
 
         list_values = []
         for i in self.general_params:
@@ -346,11 +346,11 @@ class ComponentCard(QWidget):
             value = self.list_count_entry[name].text()
             list_values.append(value)
 
-        if self.passport_flg:
-            for i in self.pb_params:
-                name = i[0]
-                value = self.list_pb_entry[name].text()
-                list_values.append(value)
+        # if self.passport_flg:
+        #     for i in self.pb_params:
+        #         name = i[0]
+        #         value = self.list_pb_entry[name].text()
+        #         list_values.append(value)
 
         if self.application_flg:
             concat_columns += ", application"
@@ -482,10 +482,10 @@ class EditComponentCard(ComponentCard):
             else:
                 self.hexcolor = ""
 
-        if self.passport_flg:
-            passport_values = self.db.search_records(self.pb_columns, self.category, (name,), request)[0]
-            for i, (_name, _) in enumerate(self.pb_params):
-                self.list_pb_entry[_name].setText(passport_values[i])
+        # if self.passport_flg:
+        #     passport_values = self.db.search_records(self.pb_columns, self.category, (name,), request)[0]
+        #     for i, (_name, _) in enumerate(self.pb_params):
+        #         self.list_pb_entry[_name].setText(passport_values[i])
 
         if self.application_flg:
             application = self.db.search_records("application", self.category, (name,), request)[0][0]

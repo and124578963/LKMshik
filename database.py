@@ -237,7 +237,8 @@ class DB:
             for i in range(len(args) - 1):
                 amount_params += '?, '
             amount_params += '?'
-
+            print(f'''INSERT INTO {group} ({name_params}) VALUES ({amount_params})''')
+            print(args)
             self.c.execute(f'''INSERT INTO {group} ({name_params}) VALUES ({amount_params})''', args, )
             self.conn.commit()
             return True
@@ -308,68 +309,67 @@ class DB:
     @connect_db_decorator
     def new_update_record(self, group, params, id, args):
         global password
-        if group != 'Producer':
-            code_name = args[0:2]
-            code_name[0] = code_name[0].lower()
-            code_name[1] = code_name[1].lower()
-            self.c.execute(f'''SELECT code, name FROM {group} WHERE name=? ''', (id,), )
-            fetchall = self.c.fetchone()
-            dec_fetchall = []
-            for i in fetchall:
-                if ENCRYPT_REACTIVES:
-                    dec_fetchall.append(self.symmetric_decrypt(bytes(i), password).decode())
-                else:
-                    dec_fetchall.append(i)
-
-            check_repeat_code = code_name[0] == dec_fetchall[0].lower() or code_name[0] == '' or code_name[0] == ' '
-            check_repeat_name = code_name[1] == dec_fetchall[1].lower()
-
-            check = check_repeat_code and check_repeat_name
-            if check == False and code_name[1] == dec_fetchall[1].lower():
-                check = self.check_unique([code_name[0], code_name[0]], 'reactives')
-            elif check == False and code_name[0] == dec_fetchall[0].lower():
-                check = self.check_unique([code_name[1], code_name[1]], 'reactives')
-            elif check == False:
-                check = self.check_unique(args[0:2], group)
-
-
-        else:
-            code_name = args[0]
-            code_name = code_name.lower()
-            self.c.execute(f'''SELECT provider FROM {group} WHERE provider=? ''', (id,), )
-            fetchall = self.c.fetchone()
-            dec_fetchall = []
-            for i in fetchall:
-                if ENCRYPT_REACTIVES:
-                    dec_fetchall.append(self.symmetric_decrypt(bytes(i), password).decode())
-                else:
-                    dec_fetchall.append(i)
-
-            check = code_name == dec_fetchall[0].lower()
-            if check == False:
-                check = self.check_unique(args[0:2], group)
-
-        if check:
-            enc_args = []
-            for i in args:
-                if ENCRYPT_REACTIVES:
-                    enc_args.append(self.symmetric_encrypt(i.encode(), password))
-                else:
-                    enc_args.append(i)
-
-            self.listargs = [*enc_args, id, ]
-            if group != 'Producer':
-                print(f'''UPDATE {group} SET {params} WHERE name=?''')
-                self.c.execute(f'''UPDATE {group} SET {params} WHERE name=?''',
-                               (self.listargs))
+        # if group != 'Producer':
+        #     code_name = args[0:2]
+        #     code_name[0] = code_name[0].lower()
+        #     code_name[1] = code_name[1].lower()
+        #     self.c.execute(f'''SELECT name FROM {group} WHERE name=? ''', (id,), )
+        #     fetchall = self.c.fetchone()
+        #     dec_fetchall = []
+        #     for i in fetchall:
+        #         if ENCRYPT_REACTIVES:
+        #             dec_fetchall.append(self.symmetric_decrypt(bytes(i), password).decode())
+        #         else:
+        #             dec_fetchall.append(i)
+        #
+        #     check_repeat_code = code_name[0] == dec_fetchall[0].lower() or code_name[0] == '' or code_name[0] == ' '
+        #     check_repeat_name = code_name[1] == dec_fetchall[1].lower()
+        #
+        #     check = check_repeat_code and check_repeat_name
+        #     if check == False and code_name[1] == dec_fetchall[1].lower():
+        #         check = self.check_unique([code_name[0], code_name[0]], 'reactives')
+        #     elif check == False and code_name[0] == dec_fetchall[0].lower():
+        #         check = self.check_unique([code_name[1], code_name[1]], 'reactives')
+        #     elif check == False:
+        #         check = self.check_unique(args[0:2], group)
+        #
+        #
+        # else:
+        #     code_name = args[0]
+        #     code_name = code_name.lower()
+        #     self.c.execute(f'''SELECT provider FROM {group} WHERE provider=? ''', (id,), )
+        #     fetchall = self.c.fetchone()
+        #     dec_fetchall = []
+        #     for i in fetchall:
+        #         if ENCRYPT_REACTIVES:
+        #             dec_fetchall.append(self.symmetric_decrypt(bytes(i), password).decode())
+        #         else:
+        #             dec_fetchall.append(i)
+        #
+        #     check = code_name == dec_fetchall[0].lower()
+        #     if check == False:
+        #         check = self.check_unique(args[0:2], group)
+        #
+        # if check:
+        enc_args = []
+        for i in args:
+            if ENCRYPT_REACTIVES:
+                enc_args.append(self.symmetric_encrypt(i.encode(), password))
             else:
-                self.c.execute(f'''UPDATE {group} SET {params} WHERE provider=?''',
-                               (self.listargs))
+                enc_args.append(i)
 
-            self.conn.commit()
-            return True
+        self.listargs = [*enc_args, id, ]
+        if group != 'Producer':
+            print(f'''UPDATE {group} SET {params} WHERE name=?''')
+            self.c.execute(f'''UPDATE {group} SET {params} WHERE name=?''',
+                           (self.listargs))
         else:
-            return False
+            self.c.execute(f'''UPDATE {group} SET {params} WHERE provider=?''',
+                           (self.listargs))
+
+        self.conn.commit()
+        return True
+
 
     @connect_db_decorator
     def delete_records(self, group, name):
@@ -432,93 +432,95 @@ class DB:
         return decode_fetchall
 
     def check_unique(self, code_name, category):
-        if self.global_check:
-            if category != 'Producer':
-                code_name[0] = code_name[0].lower()
+        return True
+        # if self.global_check:
+        #     if category != 'Producer':
+        #         code_name[0] = code_name[0].lower()
+        #
+        #         list_group = ['Solvents', 'Pigments', 'PigmPast', 'Fillers', 'Films', 'Additives', 'Hardener']
+        #         validate = []
+        #
+        #         if code_name[0] != '' and code_name[0] != ' ':
+        #             for group in list_group:
+        #
+        #                 self.c.execute(f'''SELECT * FROM {group} WHERE LOWER(DECODE(name))=? ''', (code_name[0],), )
+        #                 fetchall = self.c.fetchone()
+        #
+        #                 validate.append(True) if fetchall == None else validate.append(False)
+        #                 check = all(validate)
+        #                 if check and code_name[1] != '' and code_name[1] != ' ':
+        #                     check = True
+        #                 else:
+        #                     check = False
+        #             return check
+        #
+        #         else:
+        #             for group in list_group:
+        #
+        #                 self.c.execute(f'''SELECT * FROM {group} WHERE LOWER(DECODE(name))=? ''', (code_name[1],), )
+        #                 fetchall = self.c.fetchone()
+        #
+        #                 validate.append(True) if fetchall == None else validate.append(False)
+        #                 check = all(validate)
+        #                 if check and code_name[1] != '' and code_name[1] != ' ':
+        #                     check = True
+        #                 else:
+        #                     check = False
+        #             return check
+        #
+        #
+        #     else:
+        #         code_name[0] = code_name[0].lower()
+        #         self.c.execute(f'''SELECT * FROM producer WHERE LOWER(DECODE(provider))=?''', (code_name[0],), )
+        #         fetchall = self.c.fetchone()
+        #         check = True if fetchall == None else False
+        #         return check
+        # else:
+        #     if category != 'Producer':
+        #         code_name[0] = code_name[0].lower()
+        #         code_name[1] = code_name[1].lower()
+        #
+        #         list_group = ['Solvents', 'Pigments', 'PigmPast', 'Fillers', 'Films', 'Additives', 'Hardener']
+        #         validate = []
+        #
+        #         if code_name[0] != '' and code_name[0] != ' ':
+        #             for group in list_group:
+        #                 self.c.execute(f'''SELECT * FROM {group} WHERE LOWER(DECODE(code))=? OR LOWER(DECODE(name))=? ''',
+        #                                code_name, )
+        #                 fetchall = self.c.fetchone()
+        #
+        #                 validate.append(True) if fetchall == None else validate.append(False)
+        #                 check = all(validate)
+        #                 if check and code_name[1] != '' and code_name[1] != ' ':
+        #                     check = True
+        #                 else:
+        #                     check = False
+        #
+        #             return check
+        #
+        #         else:
+        #             for group in list_group:
+        #
+        #                 self.c.execute(f'''SELECT * FROM {group} WHERE LOWER(DECODE(name))=? ''', (code_name[1],), )
+        #                 fetchall = self.c.fetchone()
+        #
+        #                 validate.append(True) if fetchall == None else validate.append(False)
+        #                 check = all(validate)
+        #                 if check and code_name[1] != '' and code_name[1] != ' ':
+        #                     check = True
+        #                 else:
+        #                     check = False
+        #
+        #             return check
+        #
+        #
+        #     else:
+        #         code_name[0] = code_name[0].lower()
+        #         self.c.execute(f'''SELECT * FROM producer WHERE LOWER(DECODE(provider))=?''', (code_name[0],), )
+        #         fetchall = self.c.fetchone()
+        #         check = True if fetchall == None else False
+        #         return check
 
-                list_group = ['Solvents', 'Pigments', 'PigmPast', 'Fillers', 'Films', 'Additives', 'Hardener']
-                validate = []
-
-                if code_name[0] != '' and code_name[0] != ' ':
-                    for group in list_group:
-
-                        self.c.execute(f'''SELECT * FROM {group} WHERE LOWER(DECODE(name))=? ''', (code_name[0],), )
-                        fetchall = self.c.fetchone()
-
-                        validate.append(True) if fetchall == None else validate.append(False)
-                        check = all(validate)
-                        if check and code_name[1] != '' and code_name[1] != ' ':
-                            check = True
-                        else:
-                            check = False
-                    return check
-
-                else:
-                    for group in list_group:
-
-                        self.c.execute(f'''SELECT * FROM {group} WHERE LOWER(DECODE(name))=? ''', (code_name[1],), )
-                        fetchall = self.c.fetchone()
-
-                        validate.append(True) if fetchall == None else validate.append(False)
-                        check = all(validate)
-                        if check and code_name[1] != '' and code_name[1] != ' ':
-                            check = True
-                        else:
-                            check = False
-                    return check
-
-
-            else:
-                code_name[0] = code_name[0].lower()
-                self.c.execute(f'''SELECT * FROM producer WHERE LOWER(DECODE(provider))=?''', (code_name[0],), )
-                fetchall = self.c.fetchone()
-                check = True if fetchall == None else False
-                return check
-        else:
-            if category != 'Producer':
-                code_name[0] = code_name[0].lower()
-                code_name[1] = code_name[1].lower()
-
-                list_group = ['Solvents', 'Pigments', 'PigmPast', 'Fillers', 'Films', 'Additives', 'Hardener']
-                validate = []
-
-                if code_name[0] != '' and code_name[0] != ' ':
-                    for group in list_group:
-                        self.c.execute(f'''SELECT * FROM {group} WHERE LOWER(DECODE(code))=? OR LOWER(DECODE(name))=? ''',
-                                       code_name, )
-                        fetchall = self.c.fetchone()
-
-                        validate.append(True) if fetchall == None else validate.append(False)
-                        check = all(validate)
-                        if check and code_name[1] != '' and code_name[1] != ' ':
-                            check = True
-                        else:
-                            check = False
-
-                    return check
-
-                else:
-                    for group in list_group:
-
-                        self.c.execute(f'''SELECT * FROM {group} WHERE LOWER(DECODE(name))=? ''', (code_name[1],), )
-                        fetchall = self.c.fetchone()
-
-                        validate.append(True) if fetchall == None else validate.append(False)
-                        check = all(validate)
-                        if check and code_name[1] != '' and code_name[1] != ' ':
-                            check = True
-                        else:
-                            check = False
-
-                    return check
-
-
-            else:
-                code_name[0] = code_name[0].lower()
-                self.c.execute(f'''SELECT * FROM producer WHERE LOWER(DECODE(provider))=?''', (code_name[0],), )
-                fetchall = self.c.fetchone()
-                check = True if fetchall == None else False
-                return check
 
 
     @connect_db_decorator
@@ -578,14 +580,8 @@ class DB:
         global password
         search = search.lower()
         search = ('%' + search + '%')
-        self.c.execute('''SELECT Name FROM Solvents WHERE LOWER(DECODE(Name)) LIKE ? 
-           UNION SELECT Name FROM Pigments WHERE LOWER(DECODE(Name)) LIKE ? 
-           UNION SELECT Name FROM Fillers WHERE LOWER(DECODE(Name)) LIKE ?
-           UNION SELECT Name FROM Films WHERE LOWER(DECODE(Name)) LIKE ?
-           UNION SELECT Name FROM Additives WHERE LOWER(DECODE(Name)) LIKE ?
-           UNION SELECT Name FROM PigmPast WHERE LOWER(DECODE(Name)) LIKE ?
-           UNION SELECT Name FROM Hardener WHERE LOWER(DECODE(Name)) LIKE ?''',
-                       [search for _ in range(7)])
+        self.c.execute('''SELECT Name FROM Components WHERE LOWER(DECODE(Name)) LIKE ? ''',
+                       [search,])
         fetchall = self.c.fetchall()
         decode_fetchall = []
         for item in fetchall:
