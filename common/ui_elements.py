@@ -23,6 +23,7 @@ from skimage import color as color_kit
 
 BASE_DIR = os.path.dirname(__file__).rstrip("common").replace("\\", "/")
 
+
 class HoverableButton(QtWidgets.QPushButton):
     hover = QtCore.pyqtSignal(str)
 
@@ -191,7 +192,6 @@ class CustomTextEdit(QtWidgets.QTextEdit):
                     QLineEdit:hover{
                     }
                     """)
-
 
 
 class ColorButton(QtWidgets.QPushButton):
@@ -775,6 +775,7 @@ def change_position_window(self, x: int = 0, y: int = 0):
 
 def set_window_icon(self):
     self.setWindowIcon(QtGui.QIcon(os.path.join(BASE_DIR, 'images/icon.png')))
+
 
 def fix_tab_bg(tab:QtWidgets.QWidget):
     tab.setObjectName("tab")
