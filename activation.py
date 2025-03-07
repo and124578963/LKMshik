@@ -212,7 +212,7 @@ class Ui_register_w(object):
 
     @staticmethod
     def check_created():
-        with SqliteDict('configuration_') as mydict:
+        with SqliteDict('configuration') as mydict:
             return mydict.get("password", False)
 
 
@@ -283,20 +283,20 @@ class Ui_entry_w(object):
 
         try:
             get_config_param("password", password=self.passw_e.text())
-            # try:
-            #     # f=logging&name=1&company=яыфв&email=фцу@sad.wq&mac=123123&windows_name=qweqw.qweqwфцв_
-            #
-            #     data_dict = {"f": "logging",
-            #                  "name": name,
-            #                  "company": company,
-            #                  "email": email,
-            #                  "mac": mac,
-            #                  "windows_name": windows_name
-            #                  }
-            #     requests.get("http://лкмщик.рф/api_path", params=data_dict)
-            #
-            # except:
-            #     logging.error("Не удалось подключиться к API")
+            try:
+                # f=logging&name=1&company=яыфв&email=фцу@sad.wq&mac=123123&windows_name=qweqw.qweqwфцв_
+
+                data_dict = {"f": "logging",
+                             "name": name,
+                             "company": company,
+                             "email": email,
+                             "mac": mac,
+                             "windows_name": windows_name
+                             }
+                requests.get("http://лкмщик.рф/api_path", params=data_dict)
+
+            except:
+                logging.error("Не удалось подключиться к API")
 
             self.main_window.set_state("main")
             Secrets.password = self.passw_e.text()

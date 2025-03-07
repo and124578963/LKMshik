@@ -1766,30 +1766,30 @@ class ReceptureDataModel:
 
     def all_density_in_objects(self):
         all_mass = self.mass
-        density = Decimal(0)
+        volume = Decimal(0)
         for i in self.list_of_solvent_objects:
-            i = i.mass * i.density / all_mass
-            density += i
+            i = i.mass / i.density
+            volume += i
         for i in self.list_of_pigment_objects:
-            i = i.mass * i.density / all_mass
-            density += i
+            i = i.mass / i.density
+            volume += i
         for i in self.list_of_filler_objects:
-            i = i.mass * i.density / all_mass
-            density += i
+            i = i.mass / i.density
+            volume += i
         for i in self.list_of_film_objects:
-            i = i.mass * i.density / all_mass
-            density += i
+            i = i.mass / i.density
+            volume += i
         for i in self.list_of_pigmpast_objects:
-            i = i.mass * i.density / all_mass
-            density += i
+            i = i.mass / i.density
+            volume += i
         for i in self.list_of_additive_objects:
-            i = i.mass * i.density / all_mass
-            density += i
+            i = i.mass / i.density
+            volume += i
         for i in self.list_of_hardener_objects:
-            i = i.mass * i.density / all_mass
-            density += i
+            i = i.mass / i.density
+            volume += i
 
-        self.density = density
+        self.density = all_mass / volume
 
     def all_volume_suhoi_in_objects(self):
         suhoi = self.all_suhoi_for_volume

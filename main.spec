@@ -8,8 +8,8 @@ a = Analysis(
     ['main.py'],
     pathex=[],
     binaries=[
-    (r"C:\Users\andrey.pervushin\PycharmProjects\LKMshikPyQt\venv\Lib\site-packages\pywin32_system32\pywintypes38.dll", "."),
-    (r"C:\Users\andrey.pervushin\PycharmProjects\LKMshikPyQt\venv\Lib\site-packages\pywin32_system32\pythoncom38.dll", ".")
+    (r"C:\Users\User\PycharmProjects\LKMshik\.venv2\Lib\site-packages\pywin32_system32\pywintypes38.dll", "."),
+    (r"C:\Users\User\PycharmProjects\LKMshik\.venv2\Lib\site-packages\pywin32_system32\pythoncom38.dll", ".")
     ],
     datas=[('images', 'images' ), ('files', 'files')],
     hiddenimports=['skimage.io', 'skimage.transform', 'skimage.filter.rank.core_cy', 'packaging', 'packaging.version',
@@ -45,5 +45,5 @@ exe = EXE(
     target_arch=None,
     codesign_identity=None,
     entitlements_file=None,
-    icon=r"C:\Users\andrey.pervushin\PycharmProjects\LKMshikPyQt\images\icon.ico"
+    icon=r"C:\Users\User\PycharmProjects\LKMshik\images\icon.ico"
 )

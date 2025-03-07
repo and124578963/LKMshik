@@ -13,7 +13,7 @@ if not os.path.isfile('./configuration'):
         mydict.commit()
 
 def get_app_version():
-    return "2.0 от 01.07.2023"
+    return "2.1 от 07.03.2025"
 
 def get_database_path():
     global DATABASE_PATH
