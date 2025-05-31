@@ -1,5 +1,8 @@
 # House of Paint (ЛКМщик)
 
+## More about it
+https://лкмщик.рф
+
 ## Preamble
 This project was created during my early stages of learning IT, so the code may not be perfect.
 If you'd like to contribute to the development of this project, we can start with refactoring. Please contact me, and I'll explain everything.
