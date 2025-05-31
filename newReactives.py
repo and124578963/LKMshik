@@ -66,10 +66,11 @@ class MyComponentsUi(QWidget):
             self.category_btn_dict[category].clicked.connect(lambda event, cat=category: self.select_category(cat))
             self.verticalLayout.addWidget(self.category_btn_dict[category])
 
-        self.global_switch_btn = SwitchGlobalButton(self.left_side)
-        self.global_switch_btn.clicked.connect(lambda event: self.global_switch())
-
-        self.verticalLayout.addWidget(self.global_switch_btn)
+        # Отключено глобальное хранилище
+        # self.global_switch_btn = SwitchGlobalButton(self.left_side)
+        # self.global_switch_btn.clicked.connect(lambda event: self.global_switch())
+        #
+        # self.verticalLayout.addWidget(self.global_switch_btn)
 
         spacerItem = QtWidgets.QSpacerItem(20, 40, QtWidgets.QSizePolicy.Policy.Minimum,
                                            QtWidgets.QSizePolicy.Policy.Expanding)

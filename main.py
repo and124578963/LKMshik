@@ -8,7 +8,7 @@ from PyQt5 import QtGui, QtWidgets
 from PyQt5.QtGui import QFontDatabase
 from PyQt5.QtWidgets import QApplication, QMainWindow
 
-from activation import Ui_activation_w, Ui_register_w, Ui_entry_w
+from activation import  Ui_register_w, Ui_entry_w
 from common.ui_elements import delete_chield
 from projects import Projects_Ui
 
@@ -20,8 +20,10 @@ class MainWindow(QMainWindow):
         self.centralwidget = QtWidgets.QWidget(parent=self)
         self.setCentralWidget(self.centralwidget)
         self.verticalLayout = QtWidgets.QVBoxLayout(self.centralwidget)
-        # self.ui = Ui_MainWindow()
-        self.set_state("activation")
+
+        # self.set_state("activation") отключена активация
+        self.set_state("register")
+
         id = QFontDatabase.addApplicationFont(BASE_DIR.replace("\\", "/") + '/files/Roboto-Regular.ttf')
         id2 = QFontDatabase.addApplicationFont(BASE_DIR.replace("\\", "/") + '/files/Roboto-Medium.ttf')
         if id == -1 and id2 == -1:
@@ -44,10 +46,11 @@ class MainWindow(QMainWindow):
 
     def set_state(self, state):
         delete_chield(self.verticalLayout)
-        if state == "activation":
-            self.ui = Ui_activation_w()
-            self.ui.setupUi(self)
-        elif state == "main":
+        # Активация отключена
+        # if state == "activation":
+        #     self.ui = Ui_activation_w()
+        #     self.ui.setupUi(self)
+        if state == "main":
             self.ui2 = Projects_Ui()
             self.ui2.setupUi(self)
             self.showMaximized()

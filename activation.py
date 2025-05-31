@@ -116,9 +116,9 @@ class Ui_register_w(object):
             describe = QtWidgets.QLabel(parent=self.centralwidget)
             describe.setFont(generate_font(10))
             describe.setAlignment(QtCore.Qt.AlignmentFlag.AlignCenter)
-            describe.setText("Для статистики на сервер передаются только имя, email и компания.\n"
+            describe.setText("Для статистики на сервер передается информация о новых пользователях: имя, email, название компании.\n"
                              "Любая другая информация, добавленная в данное приложение,\n"
-                             "храниться только на вашем компьютере.")
+                             "храниться только на вашем компьютере и никуда не передается.")
 
             describe.setStyleSheet("""
                         margin:0 0 7 0;
