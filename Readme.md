@@ -14,6 +14,17 @@ The application allows you to:
 
 You can check the source code for security and build the .exe file yourself.
 
+## File Descriptions
+*   `main.py`: The main file that initiates the application launch, registration, and password entry windows.
+*   `projects.py`: The projects window, displaying a grid of formulations.
+*   `recepture.py`: The specific formulation window, where formulations are created and edited.
+*   `newReactives.py`: The window displaying a tabular list of reagents in the laboratory.
+*   `component_card.py`: The window for adding new and editing existing reagents.
+*   `activation.py`: Application activation logic (deprecated).
+*   `database.py`: Handles database connection via SQLite.
+*   `saves/`: Folder containing saved projects and formulations. The file structure mirrors the SQLite database.
+*   `reactives.db`: SQLite database for reagents.
+
 ## Prerequisites
 *   python 3.8.*
 *   `pip install -r ./requirements.txt`
@@ -26,9 +37,13 @@ You can check the source code for security and build the .exe file yourself.
 2.  An .exe file will appear in the `dist` folder.
 3.  Take this .exe file and place it in a folder along with the other files from the repository: `reactives.db`, `import.xlsx`, `saves`, `media`, `backup`.
 
+## Roadmap / To-Do (Priority Tasks)
+*   Normalize data in the database.
+*   Merge formulations and reagents into a single database.
+*   Migrate to SQLAlchemy.
+
 ## Contributing
 As mentioned, if you're interested in contributing, especially with refactoring, please reach out.
-
 
 ## License
 
@@ -47,4 +62,4 @@ Under the following terms:
 
 For the full license text, please visit: [https://creativecommons.org/licenses/by-nc/4.0/](https://creativecommons.org/licenses/by-nc/4.0/)
 
-**In simple terms:** You can use and modify the code for personal, educational, or research purposes. However, you cannot use this code or any derivatives of it for commercial gain. If you share or adapt the code, you must provide attribution to the original author(s) and state that it is licensed under CC BY-NC 4.0.
+**In simple terms:** You are free to edit the code and use this application for any of your personal purposes. However, you are not permitted to sell the application itself or use it for other commercial purposes. If you share or adapt the code, you must provide appropriate credit to the original author(s) and indicate that it is licensed under CC BY-NC 4.0.
